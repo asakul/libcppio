@@ -6,7 +6,7 @@ namespace cppio
 
 	static const std::string pipePrefix = "\\\\.\\pipe\\";
 
-NamedPipeLine::NamedPipeLine(const std::string& address) : m_address(address)
+NamedPipeLine::NamedPipeLine(const std::string& address)
 {
 	HANDLE serverPipe = CreateFile((pipePrefix + address).c_str(), GENERIC_READ|GENERIC_WRITE, 0, NULL,
 			OPEN_EXISTING, 0, NULL);
@@ -27,8 +27,10 @@ NamedPipeLine::NamedPipeLine(const std::string& address) : m_address(address)
 	ReadFile(serverPipe, pipeNameBuffer.data(), pipeNameBuffer.size(), &cbRead, NULL);
 	CloseHandle(serverPipe);
 
-	std::string newAddress(pipeNameBuffer.data(), cbRead);
-	m_pipe = CreateFile((pipePrefix + address).c_str(), GENERIC_READ|GENERIC_WRITE, 0, NULL,
+	m_address = std::string(pipeNameBuffer.data(), cbRead);
+	if(m_address.empty())
+		throw IoException("Invalid new address");
+	m_pipe = CreateFile((pipePrefix + m_address).c_str(), GENERIC_READ|GENERIC_WRITE, 0, NULL,
 			OPEN_EXISTING, 0, NULL);
 	if(m_pipe == INVALID_HANDLE_VALUE) // FIXME handle ERROR_PIPE_BUSY
 		throw IoException("[3]Unable to open pipe: " + std::to_string(GetLastError()));
@@ -90,7 +92,7 @@ static bool connectPipe(HANDLE pipe, int msec)
 		switch(GetLastError())
 		{
 			case ERROR_PIPE_CONNECTED:
-				rc = TRUE;
+				ret = TRUE;
 				break;
 			case ERROR_IO_PENDING:
 				if(WaitForSingleObject(ol.hEvent, msec) == WAIT_OBJECT_0)
@@ -111,7 +113,8 @@ static bool connectPipe(HANDLE pipe, int msec)
 
 std::shared_ptr<IoLine> NamedPipeAcceptor::waitConnection(const std::chrono::milliseconds& timeout)
 {
-	m_waitingPipe = CreateNamedPipe((pipePrefix + m_address).c_str(), PIPE_ACCESS_DUPLEX,
+	std::string newPipeAddress = m_address + std::to_string(m_counter.fetch_add(1));
+	m_waitingPipe = CreateNamedPipe((pipePrefix + newPipeAddress).c_str(), PIPE_ACCESS_DUPLEX,
 			PIPE_TYPE_BYTE | PIPE_WAIT,
 			PIPE_UNLIMITED_INSTANCES,
 			65536, 65536, 0, NULL);
@@ -123,7 +126,6 @@ std::shared_ptr<IoLine> NamedPipeAcceptor::waitConnection(const std::chrono::mil
 		return std::shared_ptr<IoLine>();
 	}
 
-	std::string newPipeAddress = m_address + std::to_string(m_counter.fetch_add(1));
 	WriteFile(m_pipe, newPipeAddress.c_str(), newPipeAddress.size(), NULL, NULL);
 	FlushFileBuffers(m_pipe);
 	DisconnectNamedPipe(m_pipe);

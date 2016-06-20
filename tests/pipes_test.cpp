@@ -53,12 +53,13 @@ static void threadedCheckIo(const std::shared_ptr<IoLineManager>& manager, const
 	std::thread serverThread([&]() {
 			auto server = manager->createServer(endpoint);
 			auto socket = server->waitConnection(std::chrono::milliseconds(100));
+			std::this_thread::sleep_for(std::chrono::milliseconds(20));
 			socket->read(recv_buf.data(), 1024);
 			});
 
 
 	std::thread clientThread([&]() {
-			usleep(10000);
+			std::this_thread::sleep_for(std::chrono::milliseconds(2));
 			auto client = manager->createClient(endpoint);
 			REQUIRE(client);
 
