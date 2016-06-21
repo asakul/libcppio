@@ -1,6 +1,18 @@
 
 #include "pipes.h"
 
+#ifdef _GLIBCXX_HAVE_BROKEN_VSWPRINTF
+#include <sstream>
+template < typename T > std::string to_string( const T& n )
+{
+    std::ostringstream stm ;
+    stm << n ;
+    return stm.str() ;
+}
+#else
+using std::to_string;
+#endif // _GLIBCXX_HAVE_BROKEN_VSWPRINTF
+
 namespace cppio
 {
 
@@ -11,14 +23,14 @@ NamedPipeLine::NamedPipeLine(const std::string& address)
 	HANDLE serverPipe = CreateFile((pipePrefix + address).c_str(), GENERIC_READ|GENERIC_WRITE, 0, NULL,
 			OPEN_EXISTING, 0, NULL);
 	if(serverPipe == INVALID_HANDLE_VALUE) // FIXME handle ERROR_PIPE_BUSY
-		throw IoException("[1]Unable to open pipe: " + std::to_string(GetLastError()));
+		throw IoException("[1]Unable to open pipe: " + to_string(GetLastError()));
 
-	DWORD dwMode = PIPE_READMODE_MESSAGE; 
+	DWORD dwMode = PIPE_READMODE_MESSAGE;
 	if(!SetNamedPipeHandleState(serverPipe, &dwMode, NULL, NULL))
 	{
 		int error = GetLastError();
 		if(error)
-			throw IoException("[2]Unable to open pipe: " + std::to_string(GetLastError()));
+			throw IoException("[2]Unable to open pipe: " + to_string(GetLastError()));
 	}
 
 	std::array<char, 1024> pipeNameBuffer;
@@ -33,7 +45,7 @@ NamedPipeLine::NamedPipeLine(const std::string& address)
 	m_pipe = CreateFile((pipePrefix + m_address).c_str(), GENERIC_READ|GENERIC_WRITE, 0, NULL,
 			OPEN_EXISTING, 0, NULL);
 	if(m_pipe == INVALID_HANDLE_VALUE) // FIXME handle ERROR_PIPE_BUSY
-		throw IoException("[3]Unable to open pipe: " + std::to_string(GetLastError()));
+		throw IoException("[3]Unable to open pipe: " + to_string(GetLastError()));
 }
 
 NamedPipeLine::NamedPipeLine(HANDLE fd, const std::string& address) : m_address(address),
@@ -72,7 +84,7 @@ NamedPipeAcceptor::NamedPipeAcceptor(const std::string& address) : m_address(add
 			PIPE_UNLIMITED_INSTANCES,
 			8192, 8192, 0, NULL);
 	if(m_pipe == INVALID_HANDLE_VALUE)
-		throw IoException("Unable to create pipe: " + std::to_string(GetLastError()));
+		throw IoException("Unable to create pipe: " + to_string(GetLastError()));
 }
 
 NamedPipeAcceptor::~NamedPipeAcceptor()
@@ -86,8 +98,8 @@ static bool connectPipe(HANDLE pipe, int msec)
 	BOOL ret = 0;
 
 	ol.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-	BOOL rc = ConnectNamedPipe(pipe, &ol);
-	if(rc == 0)
+	ret = ConnectNamedPipe(pipe, &ol);
+    if(ret == 0)
 	{
 		switch(GetLastError())
 		{
@@ -113,7 +125,7 @@ static bool connectPipe(HANDLE pipe, int msec)
 
 std::shared_ptr<IoLine> NamedPipeAcceptor::waitConnection(const std::chrono::milliseconds& timeout)
 {
-	std::string newPipeAddress = m_address + std::to_string(m_counter.fetch_add(1));
+	std::string newPipeAddress = m_address + to_string(m_counter.fetch_add(1));
 	m_waitingPipe = CreateNamedPipe((pipePrefix + newPipeAddress).c_str(), PIPE_ACCESS_DUPLEX,
 			PIPE_TYPE_BYTE | PIPE_WAIT,
 			PIPE_UNLIMITED_INSTANCES,
@@ -126,7 +138,9 @@ std::shared_ptr<IoLine> NamedPipeAcceptor::waitConnection(const std::chrono::mil
 		return std::shared_ptr<IoLine>();
 	}
 
-	WriteFile(m_pipe, newPipeAddress.c_str(), newPipeAddress.size(), NULL, NULL);
+	DWORD written = 0;
+	WriteFile(m_pipe, newPipeAddress.c_str(), newPipeAddress.size(), &written, NULL);
+	// TODO handle written != newPipeAddress.size();
 	FlushFileBuffers(m_pipe);
 	DisconnectNamedPipe(m_pipe);
 

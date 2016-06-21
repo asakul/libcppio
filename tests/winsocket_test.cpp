@@ -7,7 +7,9 @@
 #include <numeric>
 #include <thread>
 #ifdef __MINGW32__
+#ifndef _GLIBCXX_HAS_GTHREADS
 #include "mingw.thread.h"
+#endif // _GLIBCXX_HAS_GTHREADS
 #endif
 #include <unistd.h>
 

@@ -10,8 +10,10 @@
 #include <mutex>
 #include <atomic>
 #ifdef __MINGW32__
+#ifndef _GLIBCXX_HAS_GTHREADS
 #include "mingw.mutex.h"
 #include "mingw.condition_variable.h"
+#endif
 #endif
 #include <condition_variable>
 

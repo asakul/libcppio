@@ -7,7 +7,9 @@
 #include <numeric>
 #include <thread>
 #ifdef __MINGW32__
+#ifndef _GLIBCXX_HAS_GTHREADS
 #include "mingw.thread.h"
+#endif
 #endif
 #include <unistd.h>
 
@@ -52,7 +54,8 @@ static void threadedCheckIo(const std::shared_ptr<IoLineManager>& manager, const
 
 	std::thread serverThread([&]() {
 			auto server = manager->createServer(endpoint);
-			auto socket = server->waitConnection(std::chrono::milliseconds(100));
+			auto socket = server->waitConnection(std::chrono::milliseconds(1000));
+			REQUIRE(socket);
 			std::this_thread::sleep_for(std::chrono::milliseconds(20));
 			socket->read(recv_buf.data(), 1024);
 			});
@@ -65,6 +68,7 @@ static void threadedCheckIo(const std::shared_ptr<IoLineManager>& manager, const
 
 			int rc = client->write(buf.data(), 1024);
 			REQUIRE(rc == 1024);
+			std::this_thread::sleep_for(std::chrono::milliseconds(50));
 			});
 
 

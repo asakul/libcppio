@@ -1,6 +1,18 @@
 
 #include "win_socket.h"
 
+#ifdef _GLIBCXX_HAVE_BROKEN_VSWPRINTF
+#include <sstream>
+template < typename T > std::string to_string( const T& n )
+{
+    std::ostringstream stm ;
+    stm << n ;
+    return stm.str() ;
+}
+#else
+using std::to_string;
+#endif // _GLIBCXX_HAVE_BROKEN_VSWPRINTF
+
 namespace cppio
 {
 WinSocket::WinSocket(const std::string& address) : m_address(address)
@@ -79,7 +91,7 @@ WinSocketAcceptor::WinSocketAcceptor(const std::string& address) : m_address(add
 
 	BOOL enable = 1;
 	if(setsockopt(m_socket, SOL_SOCKET, SO_REUSEADDR, (char*)&enable, sizeof(enable)) < 0)
-		throw IoException(std::string("Unable to set socket option: " + std::to_string(m_socket)));
+		throw IoException(std::string("Unable to set socket option: " + to_string(m_socket)));
 
 	auto semicolon = m_address.find(':');
 	auto host = m_address.substr(0, semicolon);
@@ -95,13 +107,13 @@ WinSocketAcceptor::WinSocketAcceptor(const std::string& address) : m_address(add
 
 	int rc = bind(m_socket, (sockaddr*)&serverName, sizeof(serverName));
 	if(rc < 0)
-		throw IoException(std::string("Unable to bind tcp socket: " + std::to_string(rc)) + "/" + std::to_string(errno));
+		throw IoException(std::string("Unable to bind tcp socket: " + to_string(rc)) + "/" + to_string(errno));
 
 	rc = listen(m_socket, 10);
 	if(rc < 0)
 	{
 		closesocket(m_socket);
-		throw IoException(std::string("Unable to listen socket: " + std::to_string(rc)));
+		throw IoException(std::string("Unable to listen socket: " + to_string(rc)));
 	}
 }
 
@@ -125,9 +137,9 @@ WinSocketFactory::WinSocketFactory()
 	WORD sockVer;
     WSADATA wsaData;
     int retVal;
- 
+
     sockVer = MAKEWORD(2,2);
-    
+
     WSAStartup(sockVer, &wsaData);
 }
 
