@@ -140,6 +140,7 @@ namespace cppio
 
 	DataQueue::~DataQueue()
 	{
+		std::unique_lock<std::mutex> lock(m_mutex);
 		m_readCondition.notify_all();
 		m_writeCondition.notify_all();
 	}
@@ -148,13 +149,26 @@ namespace cppio
 	{
 		while(m_buffer.availableReadSize() == 0)
 		{
-			if(!m_connected)
-				throw ConnectionLost("");
+			// If read buffer is empty we should block
+			bool hasData = false;
 			std::unique_lock<std::mutex> lock(m_mutex);
-			m_readCondition.wait(lock);
+			if(!m_connected)
+			{
+				// Queue is disconnected.
+				// We should re-check if any data is available, because peer could write data
+				// after first check and then disconnect
+				if(m_buffer.availableReadSize() == 0)
+					throw ConnectionLost("");
+				else
+					hasData = true;
+			}
+			if(!hasData)
+			{
+				m_readCondition.wait(lock);
 
-			if((m_buffer.availableReadSize() == 0) && (!m_connected))
-				throw ConnectionLost("");
+				if((m_buffer.availableReadSize() == 0) && (!m_connected))
+					throw ConnectionLost("");
+			}
 		}
 
 		{
