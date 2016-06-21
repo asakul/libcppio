@@ -2,6 +2,8 @@
 #ifndef MESSAGE_H
 #define MESSAGE_H
 
+#include "visibility.h"
+
 #include <cstddef>
 #include <vector>
 #include <cstdint>
@@ -10,7 +12,7 @@
 namespace cppio
 {
 
-class Frame
+class CPPIO_API Frame
 {
 public:
 	Frame();
@@ -38,7 +40,7 @@ private:
 	std::vector<char> m_data;
 };
 
-class Message
+class CPPIO_API Message
 {
 public:
 	Message();
@@ -84,8 +86,8 @@ private:
 	std::vector<Frame> m_frames;
 };
 
-class IoLine;
-class MessageProtocol
+class CPPIO_API IoLine;
+class CPPIO_API MessageProtocol
 {
 public:
 	MessageProtocol(const std::shared_ptr<IoLine>& line);

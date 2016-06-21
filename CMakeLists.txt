@@ -16,7 +16,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/catch)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/mingw-std-threads)
 
-add_definitions(-DBLOCKING_INPROC=1)
+add_definitions(-DCPPIO_BLOCKING_INPROC=1)
 
 set(cppio-sources
 		src/iolinemanager.cpp
@@ -29,9 +29,11 @@ if(WIN32)
 	list(APPEND cppio-sources
 		src/win32/win_socket.cpp
 		src/win32/pipes.cpp
+		src/win32/createlinemanager.cpp
 		)
 elseif(UNIX)
 	list(APPEND cppio-sources
+		src/posix/createlinemanager.cpp
 		src/posix/io_socket.cpp)
 endif(WIN32)
 
@@ -69,12 +71,11 @@ if(WIN32)
 endif(WIN32)
 
 add_executable(libcppio-tests tests/tests.cpp
-	${test-sources}
-	${cppio-sources})
+	${test-sources})
 
 target_compile_definitions(libcppio-tests PRIVATE)
 
-target_link_libraries(libcppio-tests ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(libcppio-tests cppio ${CMAKE_THREAD_LIBS_INIT})
 
 set_target_properties(libcppio-tests PROPERTIES COMPILE_FLAGS "-O0 -g -fprofile-arcs -ftest-coverage")
 set_target_properties(libcppio-tests PROPERTIES LINK_FLAGS "-fprofile-arcs -lgcov")

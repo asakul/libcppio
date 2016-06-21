@@ -63,4 +63,3 @@ void IoLineManager::registerFactory(std::unique_ptr<IoLineFactory> factory)
 
 }
 
-

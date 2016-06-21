@@ -3,13 +3,14 @@
 #define IOLINEMANAGER_H
 
 #include "ioline.h"
+#include "visibility.h"
 
 #include <memory>
 
 namespace cppio
 {
 
-class IoLineManager
+class CPPIO_API IoLineManager
 {
 public:
 	IoLineManager();
@@ -24,6 +25,8 @@ private:
 	struct Impl;
 	std::unique_ptr<Impl> m_impl;
 };
+
+CPPIO_API std::shared_ptr<IoLineManager> createLineManager();
 
 }
 

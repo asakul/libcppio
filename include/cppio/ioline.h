@@ -6,41 +6,42 @@
 #include <stdexcept>
 #include <memory>
 #include <chrono>
+#include "visibility.h"
 
 namespace cppio
 {
 
-class IoException : public std::runtime_error
+class CPPIO_API IoException : public std::runtime_error
 {
 public:
 	IoException(const std::string& errmsg) : std::runtime_error(errmsg) {}
 };
 
-class TimeoutException : public IoException
+class CPPIO_API TimeoutException : public IoException
 {
 public:
 	TimeoutException(const std::string& errmsg) : IoException(errmsg) {}
 };
 
-class UnsupportedOption : public IoException
+class CPPIO_API UnsupportedOption : public IoException
 {
 public:
 	UnsupportedOption(const std::string& errmsg) : IoException(errmsg) {}
 };
 
-class ConnectionLost : public IoException
+class CPPIO_API ConnectionLost : public IoException
 {
 public:
 	ConnectionLost(const std::string& errmsg) : IoException(errmsg) {}
 };
 
-enum class LineOption
+enum class CPPIO_API LineOption
 {
 	ReceiveTimeout = 1,
 	SendTimeout = 2
 };
 
-class IoLine
+class CPPIO_API IoLine
 {
 public:
 	virtual ~IoLine() = 0;
@@ -53,7 +54,7 @@ public:
 
 inline IoLine::~IoLine() {}
 
-class IoAcceptor
+class CPPIO_API IoAcceptor
 {
 public:
 	virtual ~IoAcceptor() = 0;
@@ -63,7 +64,7 @@ public:
 
 inline IoAcceptor::~IoAcceptor() {}
 
-class IoLineFactory
+class CPPIO_API IoLineFactory
 {
 public:
 	virtual ~IoLineFactory() = 0;

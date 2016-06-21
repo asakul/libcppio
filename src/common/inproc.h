@@ -6,7 +6,7 @@
 
 #include <cstddef>
 
-#ifndef BLOCKING_INPROC
+#ifndef CPPIO_BLOCKING_INPROC
 #include <atomic>
 #endif
 
@@ -41,7 +41,7 @@ public:
 	size_t size() const { return m_data.size(); }
 private:
 	std::vector<char> m_data;
-#ifdef BLOCKING_INPROC
+#ifdef CPPIO_BLOCKING_INPROC
 	size_t m_wrptr;
 	size_t m_rdptr;
 #else

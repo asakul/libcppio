@@ -10,7 +10,7 @@
 
 namespace cppio
 {
-#ifdef BLOCKING_INPROC
+#ifdef CPPIO_BLOCKING_INPROC
 	RingBuffer::RingBuffer(size_t bufferSizePower) : m_data(bufferSizePower),
 		m_wrptr(0),
 		m_rdptr(0)
