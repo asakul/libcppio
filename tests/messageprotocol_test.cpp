@@ -56,12 +56,12 @@ TEST_CASE("MessageProtocol", "[io]")
 	{
 		for(int i = 0; i < 100; i++)
 		{
-			int frames = rand() % 10;
+			int frames = rand() % 10 + 1;
 			Message msg;
 			for(int frame = 0; frame < frames; frame++)
 			{
 				std::vector<char> frameData;
-				std::generate_n(std::back_inserter(frameData), rand() % 200, rand);
+				std::generate_n(std::back_inserter(frameData), 1 + rand() % 200, rand);
 				msg.addFrame(Frame(std::move(frameData)));
 			}
 			Message recv_msg;
@@ -104,7 +104,7 @@ TEST_CASE("MessageProtocol", "[io]")
 		std::thread clientThread([&](){
 				auto client = manager.createClient("inproc://foo");
 				MessageProtocol proto(client);
-				for(size_t i = 0; i < totalChunks; i++)
+				for(int i = 0; i < totalChunks; i++)
 				{
 					if((rand() % 100) == 0)
 						std::this_thread::sleep_for(std::chrono::milliseconds(20));
@@ -118,7 +118,7 @@ TEST_CASE("MessageProtocol", "[io]")
 		std::thread serverThread([&](){
 				auto server = acceptor->waitConnection(std::chrono::milliseconds(100));
 				MessageProtocol proto(server);
-				for(size_t i = 0; i < totalChunks; i++)
+				for(int i = 0; i < totalChunks; i++)
 				{
 					if((rand() % 100) == 0)
 						std::this_thread::sleep_for(std::chrono::milliseconds(20));
@@ -149,7 +149,7 @@ TEST_CASE("MessageProtocol", "[io]")
 		std::thread clientThread([&](){
 				auto client = manager.createClient("inproc://foo");
 				MessageProtocol proto(client);
-				for(size_t i = 0; i < totalChunks; i++)
+				for(int i = 0; i < totalChunks; i++)
 				{
 					if((rand() % 100) == 0)
 						std::this_thread::sleep_for(std::chrono::milliseconds(20));
@@ -165,7 +165,7 @@ TEST_CASE("MessageProtocol", "[io]")
 				int timeout = 100;
 				server->setOption(LineOption::ReceiveTimeout, &timeout);
 				MessageProtocol proto(server);
-				for(size_t i = 0; i < totalChunks; i++)
+				for(int i = 0; i < totalChunks; i++)
 				{
 					if((rand() % 100) == 0)
 						std::this_thread::sleep_for(std::chrono::milliseconds(20));

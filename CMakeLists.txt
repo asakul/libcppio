@@ -16,6 +16,8 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/catch)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/mingw-std-threads)
 
+add_definitions(-DBLOCKING_INPROC=1)
+
 set(cppio-sources
 		src/iolinemanager.cpp
 		src/message.cpp

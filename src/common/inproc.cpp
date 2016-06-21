@@ -10,6 +10,207 @@
 
 namespace cppio
 {
+#ifdef BLOCKING_INPROC
+	RingBuffer::RingBuffer(size_t bufferSizePower) : m_data(bufferSizePower),
+		m_wrptr(0),
+		m_rdptr(0)
+	{
+	}
+
+	RingBuffer::~RingBuffer()
+	{
+	}
+
+	size_t RingBuffer::read(void* buffer, size_t buflen)
+	{
+		if(m_wrptr == m_rdptr)
+		{
+			return 0;
+		}
+		else if(m_rdptr < m_wrptr)
+		{
+			size_t tocopy = std::min(m_wrptr - m_rdptr, buflen);
+			memcpy(buffer, m_data.data() + m_rdptr, tocopy);
+			m_rdptr += tocopy;
+			return tocopy;
+		}
+		else
+		{
+			size_t tocopy = std::min(m_data.size() - m_rdptr, buflen);
+			memcpy(buffer, m_data.data() + m_rdptr, tocopy);
+			m_rdptr += tocopy;
+			if(m_rdptr == m_data.size())
+				m_rdptr = 0;
+
+			if(tocopy < buflen)
+			{
+				if(m_wrptr == m_rdptr)
+					return tocopy;
+				else if(tocopy == 0)
+					return 0;
+				else
+					return tocopy + read((char*)buffer + tocopy, buflen - tocopy);
+			}
+
+			return tocopy;
+		}
+	}
+
+	size_t RingBuffer::write(void* buffer, size_t buflen)
+	{
+		if(m_rdptr <= m_wrptr)
+		{
+			size_t tocopy = std::min(m_data.size() - m_wrptr, buflen);
+			if((m_rdptr == 0) && (tocopy == m_data.size() - m_wrptr))
+				tocopy--;
+			memcpy(m_data.data() + m_wrptr, buffer, tocopy);
+			m_wrptr += tocopy;
+
+			if(m_wrptr == m_data.size())
+				m_wrptr = 0;
+
+			if(tocopy < buflen)
+			{
+				if(m_rdptr == 0)
+					return tocopy;
+				else if(tocopy == 0)
+					return 0;
+				else
+					return tocopy + write((char*)buffer + tocopy, buflen - tocopy);
+			}
+			return tocopy;
+		}
+		else
+		{
+			size_t tocopy = std::min(m_rdptr - 1 - m_wrptr, buflen);
+
+			memcpy(m_data.data() + m_wrptr, buffer, tocopy);
+			m_wrptr += tocopy;
+			return tocopy;
+		}
+	}
+
+	size_t RingBuffer::availableReadSize() const
+	{
+		if(m_rdptr == m_wrptr)
+			return 0;
+		else if(m_rdptr < m_wrptr)
+		{
+			return m_wrptr - m_rdptr;
+		}
+		else
+		{
+			return m_data.size() - m_rdptr + m_wrptr;
+		}
+	}
+
+	size_t RingBuffer::availableWriteSize() const
+	{
+		if(m_rdptr == m_wrptr)
+			return m_data.size() - 1;
+		else if(m_rdptr < m_wrptr)
+		{
+			return m_data.size() - m_wrptr + m_rdptr - 1;
+		}
+		else
+		{
+			return m_rdptr - m_wrptr - 1;
+		}
+	}
+
+	DataQueue::DataQueue(size_t bufferSize) : m_buffer(bufferSize),
+		m_connected(false)
+	{
+	}
+
+	DataQueue::~DataQueue()
+	{
+		m_readCondition.notify_all();
+		m_writeCondition.notify_all();
+	}
+
+	size_t DataQueue::read(void* buffer, size_t buflen)
+	{
+		std::unique_lock<std::mutex> lock(m_mutex);
+		m_writeCondition.notify_all();
+		while(m_buffer.availableReadSize() == 0)
+		{
+			if(!m_connected)
+				throw ConnectionLost("");
+			m_readCondition.wait(lock);
+
+			if((m_buffer.availableReadSize() == 0) && (!m_connected))
+				throw ConnectionLost("");
+		}
+		return m_buffer.read(buffer, buflen);
+	}
+	
+	size_t DataQueue::readWithTimeout(void* buffer, size_t buflen, const std::chrono::milliseconds& timeout)
+	{
+		std::unique_lock<std::mutex> lock(m_mutex);
+		m_writeCondition.notify_all();
+		if(m_buffer.availableReadSize() == 0)
+		{
+			if(!m_connected)
+				throw ConnectionLost("");
+			bool rc = m_readCondition.wait_for(lock, timeout, [&]() { return m_buffer.availableReadSize() > 0; });
+			if(!rc)
+			{
+				if(!m_connected)
+					throw ConnectionLost("");
+				return 0;
+			}
+
+			if((m_buffer.availableReadSize() == 0) && (!m_connected))
+				throw ConnectionLost("");
+		}
+		return m_buffer.read(buffer, buflen);
+	}
+
+	size_t DataQueue::write(void* buffer, size_t buflen)
+	{
+		std::unique_lock<std::mutex> lock(m_mutex);
+		if(buflen >= m_buffer.size())
+			return 0;
+		if(m_buffer.availableWriteSize() < buflen)
+		{
+			if(!m_connected)
+				throw ConnectionLost("");
+			m_writeCondition.wait(lock, [&]() { return m_buffer.availableWriteSize() >= buflen; });
+
+			if((m_buffer.availableWriteSize() < buflen) && (!m_connected))
+				throw ConnectionLost("");
+		}
+		size_t ret = m_buffer.write(buffer, buflen);
+		m_readCondition.notify_all();
+		return ret;
+	}
+
+	size_t DataQueue::availableReadSize() const
+	{
+		return m_buffer.availableReadSize();
+	}
+
+	size_t DataQueue::availableWriteSize() const
+	{
+		return m_buffer.availableWriteSize();
+	}
+
+	void DataQueue::setConnectionFlag(bool c)
+	{
+		if(c)
+			m_connected = c;
+		else
+		{
+			if(m_connected)
+			{
+				m_connected = false;
+				m_readCondition.notify_all();
+				m_writeCondition.notify_all();
+			}
+		}
+	}
+#else
 	RingBuffer::RingBuffer(size_t bufferSizePower) : m_data(bufferSizePower),
 		m_wrptr(0),
 		m_rdptr(0)
@@ -172,9 +373,19 @@ namespace cppio
 		}
 
 		{
-			size_t rc = m_buffer.read(buffer, buflen);
-			m_writeCondition.notify_one();
-			return rc;
+			if(m_buffer.availableWriteSize() == 0)
+			{
+				std::unique_lock<std::mutex> lock(m_mutex);
+				size_t rc = m_buffer.read(buffer, buflen);
+				m_writeCondition.notify_one();
+				return rc;
+			}
+			else
+			{
+				size_t rc = m_buffer.read(buffer, buflen);
+				m_writeCondition.notify_one();
+				return rc;
+			}
 		}
 	}
 	
@@ -209,18 +420,28 @@ namespace cppio
 			return 0;
 		if(m_buffer.availableWriteSize() < buflen)
 		{
-			if(!m_connected)
-				throw ConnectionLost("");
 			std::unique_lock<std::mutex> lock(m_mutex);
+			if((m_buffer.availableWriteSize() < buflen) && (!m_connected))
+				throw ConnectionLost("");
 			m_writeCondition.wait(lock, [&]() { return m_buffer.availableWriteSize() >= buflen; });
 
 			if((m_buffer.availableWriteSize() < buflen) && (!m_connected))
 				throw ConnectionLost("");
 		}
 		{
-			size_t ret = m_buffer.write(buffer, buflen);
-			m_readCondition.notify_one();
-			return ret;
+			if(availableReadSize() == 0)
+			{
+				std::unique_lock<std::mutex> lock(m_mutex);
+				size_t ret = m_buffer.write(buffer, buflen);
+				m_readCondition.notify_one();
+				return ret;
+			}
+			else
+			{
+				size_t ret = m_buffer.write(buffer, buflen);
+				m_readCondition.notify_one();
+				return ret;
+			}
 		}
 	}
 
@@ -248,6 +469,7 @@ namespace cppio
 			}
 		}
 	}
+#endif
 
 	static std::mutex gs_mutex;
 	static std::condition_variable gs_cond;

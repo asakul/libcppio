@@ -6,9 +6,12 @@
 
 #include <cstddef>
 
+#ifndef BLOCKING_INPROC
+#include <atomic>
+#endif
+
 #include <vector>
 #include <mutex>
-#include <atomic>
 #ifdef __MINGW32__
 #ifndef _GLIBCXX_HAS_GTHREADS
 #include "mingw.mutex.h"
@@ -29,8 +32,8 @@ public:
 	size_t read(void* buffer, size_t buflen);
 	size_t write(void* buffer, size_t buflen);
 
-	size_t readPointer() const { return m_rdptr.load(); }
-	size_t writePointer() const { return m_wrptr.load(); }
+	size_t readPointer() const { return m_rdptr; }
+	size_t writePointer() const { return m_wrptr; }
 
 	size_t availableReadSize() const;
 	size_t availableWriteSize() const;
@@ -38,8 +41,13 @@ public:
 	size_t size() const { return m_data.size(); }
 private:
 	std::vector<char> m_data;
+#ifdef BLOCKING_INPROC
+	size_t m_wrptr;
+	size_t m_rdptr;
+#else
 	std::atomic<size_t> m_wrptr;
 	std::atomic<size_t> m_rdptr;
+#endif
 };
 
 class DataQueue
@@ -122,6 +130,5 @@ public:
 };
 
 }
-
 
 #endif /* ifndef INPROC_H */
