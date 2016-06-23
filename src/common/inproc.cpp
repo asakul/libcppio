@@ -136,15 +136,15 @@ namespace cppio
 		while(m_buffer.availableReadSize() == 0)
 		{
 			if(!m_connected)
-				throw ConnectionLost("");
+				throw ConnectionLost("Unable to read");
 			m_readCondition.wait(lock);
 
 			if((m_buffer.availableReadSize() == 0) && (!m_connected))
-				throw ConnectionLost("");
+				throw ConnectionLost("Unable to read [2]");
 		}
 		return m_buffer.read(buffer, buflen);
 	}
-	
+
 	size_t DataQueue::readWithTimeout(void* buffer, size_t buflen, const std::chrono::milliseconds& timeout)
 	{
 		std::unique_lock<std::mutex> lock(m_mutex);
@@ -152,17 +152,17 @@ namespace cppio
 		if(m_buffer.availableReadSize() == 0)
 		{
 			if(!m_connected)
-				throw ConnectionLost("");
+				throw ConnectionLost("Unable to write");
 			bool rc = m_readCondition.wait_for(lock, timeout, [&]() { return m_buffer.availableReadSize() > 0; });
 			if(!rc)
 			{
 				if(!m_connected)
-					throw ConnectionLost("");
+					throw ConnectionLost("Unable to write[2]");
 				return 0;
 			}
 
 			if((m_buffer.availableReadSize() == 0) && (!m_connected))
-				throw ConnectionLost("");
+				throw ConnectionLost("Unable to write[3]");
 		}
 		return m_buffer.read(buffer, buflen);
 	}
@@ -172,13 +172,13 @@ namespace cppio
 		std::unique_lock<std::mutex> lock(m_mutex);
 		if(buflen >= m_buffer.size())
 			return 0;
-		if(m_buffer.availableWriteSize() < buflen)
+		if(m_buffer.availableWriteSize() == 0)
 		{
 			if(!m_connected)
 				throw ConnectionLost("");
-			m_writeCondition.wait(lock, [&]() { return m_buffer.availableWriteSize() >= buflen; });
+			m_writeCondition.wait(lock, [&]() { return m_buffer.availableWriteSize() > 0; });
 
-			if((m_buffer.availableWriteSize() < buflen) && (!m_connected))
+			if((m_buffer.availableWriteSize() == 0) && (!m_connected))
 				throw ConnectionLost("");
 		}
 		size_t ret = m_buffer.write(buffer, buflen);
@@ -388,7 +388,7 @@ namespace cppio
 			}
 		}
 	}
-	
+
 	size_t DataQueue::readWithTimeout(void* buffer, size_t buflen, const std::chrono::milliseconds& timeout)
 	{
 		if(m_buffer.availableReadSize() == 0)

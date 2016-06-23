@@ -197,7 +197,14 @@ void MessageProtocol::sendMessage(const Message& m)
 {
 	std::vector<char> buffer(m.messageSize());
 	m.writeMessage(buffer.data());
-	m_impl->line->write(buffer.data(), buffer.size());
+	char* data = buffer.data();
+	int towrite = buffer.size();
+	while(towrite > 0)
+	{
+		size_t done = m_impl->line->write(data, towrite);
+		towrite -= done;
+		data += done;
+	}
 }
 
 
