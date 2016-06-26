@@ -45,7 +45,7 @@ static void checkIo(const std::shared_ptr<IoLineManager>& manager, const std::st
 	REQUIRE(buf == recv_buf);
 }
 
-static void threadedCheckIo(const std::shared_ptr<IoLineManager>& manager, const std::string& endpoint)
+static void threadedCheckIo(const std::shared_ptr<IoLineManager>& manager, const std::string& endpoint, const std::string& serverEndpoint)
 {
 	std::array<char, 1024> buf;
 	std::iota(buf.begin(), buf.end(), 0);
@@ -53,7 +53,7 @@ static void threadedCheckIo(const std::shared_ptr<IoLineManager>& manager, const
 	std::array<char, 1024> recv_buf;
 
 	std::thread serverThread([&]() {
-			auto server = manager->createServer(endpoint);
+			auto server = manager->createServer(serverEndpoint);
 			auto socket = server->waitConnection(std::chrono::milliseconds(100));
 			socket->read(recv_buf.data(), 1024);
 			});
@@ -80,6 +80,6 @@ TEST_CASE("Win32: TCP socket", "[io]")
 	auto manager = std::make_shared<IoLineManager>();
 	manager->registerFactory(std::unique_ptr<WinSocketFactory>(new WinSocketFactory));
 
-	threadedCheckIo(manager, "tcp://127.0.0.1:6000");
+	threadedCheckIo(manager, "tcp://127.0.0.1:6000", "tcp://*:6000");
 }
 
