@@ -7,6 +7,18 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(WORKSPACE_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
 find_package(Threads)
+if(WIN32)
+else(WIN32)
+
+set (Boost_USE_STATIC_LIBS OFF)
+set (Boost_USE_MULTITHREADED ON)
+set(Python_ADDITIONAL_VERSIONS 2.7)
+FIND_PACKAGE(PythonInterp)
+FIND_PACKAGE(PythonLibs)
+
+find_package(Boost COMPONENTS system REQUIRED python)
+include_directories(${Boost_INCLUDE_DIRS})
+endif(WIN32)
 
 SET(CMAKE_CXX_FLAGS  "-Wall -fno-strict-aliasing -fexceptions -g --std=gnu++11 -mtune=generic ${PLATFORM_CXX_FLAGS} -fno-omit-frame-pointer")
 
@@ -84,3 +96,18 @@ if(WIN32)
 target_link_libraries(libcppio-tests -lws2_32)
 endif(WIN32)
 
+if(Boost_PYTHON_FOUND)
+
+include_directories(${PYTHON_INCLUDE_DIRS})
+
+message("Python bindings enabled")
+add_library(pycppio SHARED ${libcppio-sources} python/python_bindings.cpp)
+target_link_libraries(pycppio ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} cppio)
+if(WIN32)
+	target_link_libraries(pycppio -lwsock32 -lws2_32)
+endif(WIN32)
+set_target_properties(pycppio PROPERTIES PREFIX "")
+
+else(Boost_PYTHON_FOUND)
+message("Python bindings are NOT enabled")
+endif(Boost_PYTHON_FOUND)
