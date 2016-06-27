@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0.0 FATAL_ERROR)
+cmake_minimum_required(VERSION 2.8.0 FATAL_ERROR)
 
 project(cppio)
 
@@ -35,7 +35,6 @@ set(cppio-sources
 		src/message.cpp
 
 		src/common/inproc.cpp
-		src/common/select_poller.cpp
 	)
 
 if(WIN32)
@@ -46,6 +45,7 @@ if(WIN32)
 		)
 elseif(UNIX)
 	list(APPEND cppio-sources
+		src/common/select_poller.cpp
 		src/posix/createlinemanager.cpp
 		src/posix/io_socket.cpp)
 endif(WIN32)
