@@ -23,6 +23,7 @@ set(cppio-sources
 		src/message.cpp
 
 		src/common/inproc.cpp
+		src/common/select_poller.cpp
 	)
 
 if(WIN32)
