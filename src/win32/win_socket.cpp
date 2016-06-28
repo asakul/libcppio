@@ -51,6 +51,19 @@ void WinSocket::connect()
 ssize_t WinSocket::read(void* buffer, size_t buflen)
 {
 	ssize_t rc = ::recv(m_socket, (char*)buffer, buflen, 0);
+	if(rc < 0)
+	{
+		int error = WSAGetLastError();
+		if((error == WSAENETRESET) || (error == WSAECONNABORTED) ||
+				(error == WSAECONNRESET))
+			throw ConnectionLost("");
+		return 0;
+	}
+	else if(rc == 0)
+	{
+		if(WSAGetLastError() != WSAETIMEDOUT)
+			throw ConnectionLost("");
+	}
 	return rc;
 }
 
