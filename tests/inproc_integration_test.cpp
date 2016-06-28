@@ -59,7 +59,13 @@ TEST_CASE("InprocLine", "[io]")
 				for(size_t i = 0; i < totalChunks; i++)
 				{
 					auto start = buf.data() + chunkSize * i;
-					client->write(start, chunkSize);
+					int towrite = chunkSize;
+					while(towrite > 0)
+					{
+						size_t done = client->write(start, towrite);
+						towrite -= done;
+						start += done;
+					}
 				}
 			});
 
@@ -68,7 +74,13 @@ TEST_CASE("InprocLine", "[io]")
 				for(size_t i = 0; i < totalChunks; i++)
 				{
 					auto start = recv_buf.data() + chunkSize * i;
-					server->read(start, chunkSize);
+					int toread = chunkSize;
+					while(toread > 0)
+					{
+						size_t done = server->read(start, toread);
+						toread -= done;
+						start += done;
+					}
 				}
 			});
 
@@ -95,7 +107,13 @@ TEST_CASE("InprocLine", "[io]")
 					if((rand() % 100) == 0)
 						std::this_thread::sleep_for(std::chrono::milliseconds(20));
 					auto start = buf.data() + chunkSize * i;
-					client->write(start, chunkSize);
+					int towrite = chunkSize;
+					while(towrite > 0)
+					{
+						size_t done = client->write(start, towrite);
+						towrite -= done;
+						start += done;
+					}
 				}
 			});
 
@@ -106,7 +124,13 @@ TEST_CASE("InprocLine", "[io]")
 					if((rand() % 100) == 0)
 						std::this_thread::sleep_for(std::chrono::milliseconds(20));
 					auto start = recv_buf.data() + chunkSize * i;
-					server->read(start, chunkSize);
+					int toread = chunkSize;
+					while(toread > 0)
+					{
+						size_t done = server->read(start, toread);
+						toread -= done;
+						start += done;
+					}
 				}
 			});
 

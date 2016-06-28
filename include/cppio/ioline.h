@@ -29,6 +29,12 @@ public:
 	UnsupportedOption(const std::string& errmsg) : IoException(errmsg) {}
 };
 
+class CPPIO_API LineIsNotPollable : public IoException
+{
+public:
+	LineIsNotPollable(const std::string& errmsg = std::string()) : IoException(errmsg) {}
+};
+
 class CPPIO_API ConnectionLost : public IoException
 {
 public:
@@ -41,7 +47,20 @@ enum class CPPIO_API LineOption
 	SendTimeout = 2
 };
 
-class CPPIO_API IoLine
+class CPPIO_API Pollable
+{
+public:
+	virtual ~Pollable() = 0;
+
+	virtual void* getNativeHandle()
+	{
+		return nullptr;
+	}
+};
+
+inline Pollable::~Pollable() {}
+
+class CPPIO_API IoLine : public Pollable
 {
 public:
 	virtual ~IoLine() = 0;
@@ -54,7 +73,7 @@ public:
 
 inline IoLine::~IoLine() {}
 
-class CPPIO_API IoAcceptor
+class CPPIO_API IoAcceptor : public Pollable
 {
 public:
 	virtual ~IoAcceptor() = 0;
