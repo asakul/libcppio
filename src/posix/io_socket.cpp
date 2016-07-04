@@ -199,7 +199,7 @@ void TcpSocket::connect()
 	
 	int rc = ::connect(m_socket, (sockaddr*)&addr, sizeof(addr));
 	if(rc < 0)
-		throw IoException(std::string("Unable to connect socket: " + std::to_string(rc)));
+		throw IoException(std::string("Unable to connect socket: " + std::to_string(rc) + "/" + std::to_string(errno)));
 }
 
 
