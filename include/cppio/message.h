@@ -90,12 +90,12 @@ class CPPIO_API IoLine;
 class CPPIO_API MessageProtocol
 {
 public:
-	MessageProtocol(const std::shared_ptr<IoLine>& line);
+	MessageProtocol(IoLine* line);
 	MessageProtocol(MessageProtocol&& other);
 	virtual ~MessageProtocol();
 
-	void readMessage(Message& m);
-	void sendMessage(const Message& m);
+	ssize_t readMessage(Message& m);
+	ssize_t sendMessage(const Message& m);
 
 	IoLine* getLine() const;
 

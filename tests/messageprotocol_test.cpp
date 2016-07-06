@@ -28,16 +28,16 @@ TEST_CASE("MessageProtocol", "[io]")
 		msg.addFrame(Frame("\x05\x06", 2));
 		Message recv_msg;
 
-		auto acceptor = manager.createServer("inproc://foo");
+		auto acceptor = std::unique_ptr<IoAcceptor>(manager.createServer("inproc://foo"));
 		std::thread clientThread([&](){
-				auto client = manager.createClient("inproc://foo");
-				MessageProtocol proto(client);
+				auto client = std::unique_ptr<IoLine>(manager.createClient("inproc://foo"));
+				MessageProtocol proto(client.get());
 				proto.sendMessage(msg);
 				});
 
 		std::thread serverThread([&](){
-				auto server = acceptor->waitConnection(std::chrono::milliseconds(100));
-				MessageProtocol proto(server);
+				auto server = std::unique_ptr<IoLine>(acceptor->waitConnection(100));
+				MessageProtocol proto(server.get());
 				proto.readMessage(recv_msg);
 
 				});
@@ -66,16 +66,16 @@ TEST_CASE("MessageProtocol", "[io]")
 			}
 			Message recv_msg;
 
-			auto acceptor = manager.createServer("inproc://foo");
+			auto acceptor = std::unique_ptr<IoAcceptor>(manager.createServer("inproc://foo"));
 			std::thread clientThread([&](){
-					auto client = manager.createClient("inproc://foo");
-					MessageProtocol proto(client);
+					auto client = std::unique_ptr<IoLine>(manager.createClient("inproc://foo"));
+					MessageProtocol proto(client.get());
 					proto.sendMessage(msg);
 					});
 
 			std::thread serverThread([&](){
-					auto server = acceptor->waitConnection(std::chrono::milliseconds(100));
-					MessageProtocol proto(server);
+					auto server = std::unique_ptr<IoLine>(acceptor->waitConnection(100));
+					MessageProtocol proto(server.get());
 					proto.readMessage(recv_msg);
 
 					});
@@ -100,10 +100,10 @@ TEST_CASE("MessageProtocol", "[io]")
 		const int chunkSize = 1024;
 		int totalChunks = buf.size() / chunkSize;
 
-		auto acceptor = manager.createServer("inproc://foo");
+		auto acceptor = std::unique_ptr<IoAcceptor>(manager.createServer("inproc://foo"));
 		std::thread clientThread([&](){
-				auto client = manager.createClient("inproc://foo");
-				MessageProtocol proto(client);
+				auto client = std::unique_ptr<IoLine>(manager.createClient("inproc://foo"));
+				MessageProtocol proto(client.get());
 				for(int i = 0; i < totalChunks; i++)
 				{
 					if((rand() % 100) == 0)
@@ -116,8 +116,8 @@ TEST_CASE("MessageProtocol", "[io]")
 			});
 
 		std::thread serverThread([&](){
-				auto server = acceptor->waitConnection(std::chrono::milliseconds(100));
-				MessageProtocol proto(server);
+				auto server = std::unique_ptr<IoLine>(acceptor->waitConnection(100));
+				MessageProtocol proto(server.get());
 				for(int i = 0; i < totalChunks; i++)
 				{
 					if((rand() % 100) == 0)
@@ -145,10 +145,10 @@ TEST_CASE("MessageProtocol", "[io]")
 		const int chunkSize = 1024;
 		int totalChunks = buf.size() / chunkSize;
 
-		auto acceptor = manager.createServer("inproc://foo");
+		auto acceptor = std::unique_ptr<IoAcceptor>(manager.createServer("inproc://foo"));
 		std::thread clientThread([&](){
-				auto client = manager.createClient("inproc://foo");
-				MessageProtocol proto(client);
+				auto client = std::unique_ptr<IoLine>(manager.createClient("inproc://foo"));
+				MessageProtocol proto(client.get());
 				for(int i = 0; i < totalChunks; i++)
 				{
 					if((rand() % 100) == 0)
@@ -161,10 +161,10 @@ TEST_CASE("MessageProtocol", "[io]")
 			});
 
 		std::thread serverThread([&](){
-				auto server = acceptor->waitConnection(std::chrono::milliseconds(100));
+				auto server = std::unique_ptr<IoLine>(acceptor->waitConnection(100));
 				int timeout = 100;
 				server->setOption(LineOption::ReceiveTimeout, &timeout);
-				MessageProtocol proto(server);
+				MessageProtocol proto(server.get());
 				for(int i = 0; i < totalChunks; i++)
 				{
 					if((rand() % 100) == 0)

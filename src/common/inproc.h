@@ -56,10 +56,10 @@ public:
 	DataQueue(size_t bufferSize);
 	~DataQueue();
 
-	size_t read(void* buffer, size_t buflen);
-	size_t write(void* buffer, size_t buflen);
+	ssize_t read(void* buffer, size_t buflen);
+	ssize_t write(void* buffer, size_t buflen);
 
-	size_t readWithTimeout(void* buffer, size_t buflen, const std::chrono::milliseconds& timeout);
+	ssize_t readWithTimeout(void* buffer, size_t buflen, const std::chrono::milliseconds& timeout);
 
 	size_t readPointer() const { return m_buffer.readPointer(); }
 	size_t writePointer() const { return m_buffer.writePointer(); }
@@ -80,7 +80,7 @@ private:
 class InprocLine : public IoLine
 {
 public:
-	InprocLine(const std::shared_ptr<InprocLine>& other);
+	InprocLine(InprocLine* other);
 	InprocLine(const std::string& address);
 	virtual ~InprocLine();
 
@@ -109,7 +109,7 @@ public:
 	InprocAcceptor(const std::string& address);
 	virtual ~InprocAcceptor();
 
-	virtual std::shared_ptr<IoLine> waitConnection(const std::chrono::milliseconds& timeout) override;
+	virtual IoLine* waitConnection(int timeoutInMs) override;
 
 	std::string address() const { return m_address; }
 
@@ -125,8 +125,8 @@ public:
 	virtual ~InprocLineFactory();
 
 	virtual bool supportsScheme(const std::string& scheme) override;
-	virtual std::shared_ptr<IoLine> createClient(const std::string& address) override;
-	virtual std::shared_ptr<IoAcceptor> createServer(const std::string& address) override;
+	virtual IoLine* createClient(const std::string& address) override;
+	virtual IoAcceptor* createServer(const std::string& address) override;
 };
 
 }

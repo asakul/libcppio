@@ -51,13 +51,15 @@ ssize_t UnixSocket::read(void* buffer, size_t buflen)
 	if(rc < 0)
 	{
 		if((errno == ECONNRESET) || (errno == ENOTCONN))
-			throw ConnectionLost("");
-		return 0;
+			return eConnectionLost;
+		return eUnknown;
 	}
 	else if(rc == 0)
 	{
 		if(errno != ETIMEDOUT)
-			throw ConnectionLost("");
+			return eConnectionLost;
+		else
+			return eTimeout;
 	}
 	return rc;
 }
@@ -65,6 +67,8 @@ ssize_t UnixSocket::read(void* buffer, size_t buflen)
 ssize_t UnixSocket::write(void* buffer, size_t buflen)
 {
 	ssize_t rc = ::write(m_socket, buffer, buflen);
+	if(rc <= 0)
+		return eUnknown;
 	return rc;
 }
 
@@ -133,16 +137,16 @@ UnixSocketAcceptor::~UnixSocketAcceptor()
 	unlink(m_address.c_str());
 }
 
-std::shared_ptr<IoLine> UnixSocketAcceptor::waitConnection(const std::chrono::milliseconds& timeout)
+IoLine* UnixSocketAcceptor::waitConnection(int timeoutInMs)
 {
 	sockaddr addr;
 	socklen_t clen = sizeof(addr);
 	int newsock = accept(m_socket, &addr, &clen);
 	if(newsock > 0)
 	{
-		return std::make_shared<UnixSocket>(newsock, "");
+		return new UnixSocket(newsock, "");
 	}
-	return std::shared_ptr<IoLine>();
+	return nullptr;
 }
 
 UnixSocketFactory::~UnixSocketFactory()
@@ -154,17 +158,17 @@ bool UnixSocketFactory::supportsScheme(const std::string& scheme)
 	return scheme == "local";
 }
 
-std::shared_ptr<IoLine> UnixSocketFactory::createClient(const std::string& address)
+IoLine* UnixSocketFactory::createClient(const std::string& address)
 {
-	auto socket = std::make_shared<UnixSocket>(address);
+	auto socket = new UnixSocket(address);
 	if(socket)
 		socket->connect();
 	return socket;
 }
 
-std::shared_ptr<IoAcceptor> UnixSocketFactory::createServer(const std::string& address)
+IoAcceptor* UnixSocketFactory::createServer(const std::string& address)
 {
-	return std::make_shared<UnixSocketAcceptor>(address);
+	return new UnixSocketAcceptor(address);
 }
 
 ///////
@@ -209,13 +213,14 @@ ssize_t TcpSocket::read(void* buffer, size_t buflen)
 	if(rc < 0)
 	{
 		if((errno == ECONNRESET) || (errno == ENOTCONN))
-			throw ConnectionLost("");
-		return 0;
+			return eConnectionLost;
+		return eUnknown;
 	}
 	else if(rc == 0)
 	{
 		if(errno != ETIMEDOUT)
-			throw ConnectionLost("");
+			return eConnectionLost;
+		return eTimeout;
 	}
 	return rc;
 }
@@ -223,6 +228,8 @@ ssize_t TcpSocket::read(void* buffer, size_t buflen)
 ssize_t TcpSocket::write(void* buffer, size_t buflen)
 {
 	ssize_t rc = ::write(m_socket, buffer, buflen);
+	if(rc <= 0)
+		return eUnknown;
 	return rc;
 }
 
@@ -302,16 +309,16 @@ TcpSocketAcceptor::~TcpSocketAcceptor()
 	close(m_socket);
 }
 
-std::shared_ptr<IoLine> TcpSocketAcceptor::waitConnection(const std::chrono::milliseconds& timeout)
+IoLine* TcpSocketAcceptor::waitConnection(int timeoutInMs)
 {
 	sockaddr addr;
 	socklen_t clen = sizeof(addr);
 	int newsock = accept(m_socket, &addr, &clen);
 	if(newsock > 0)
 	{
-		return std::make_shared<TcpSocket>(newsock, "");
+		return new TcpSocket(newsock, "");
 	}
-	return std::shared_ptr<IoLine>();
+	return nullptr;
 }
 
 TcpSocketFactory::~TcpSocketFactory()
@@ -323,17 +330,17 @@ bool TcpSocketFactory::supportsScheme(const std::string& scheme)
 	return scheme == "tcp";
 }
 
-std::shared_ptr<IoLine> TcpSocketFactory::createClient(const std::string& address)
+IoLine* TcpSocketFactory::createClient(const std::string& address)
 {
-	auto socket = std::make_shared<TcpSocket>(address);
+	auto socket = new TcpSocket(address);
 	if(socket)
 		socket->connect();
 	return socket;
 }
 
-std::shared_ptr<IoAcceptor> TcpSocketFactory::createServer(const std::string& address)
+IoAcceptor* TcpSocketFactory::createServer(const std::string& address)
 {
-	return std::make_shared<TcpSocketAcceptor>(address);
+	return new TcpSocketAcceptor(address);
 }
 
 }

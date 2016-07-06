@@ -132,10 +132,10 @@ void Message::get(std::string& value, size_t frameNumber) const
 
 struct MessageProtocol::Impl
 {
-	std::shared_ptr<IoLine> line;
+	IoLine* line;
 };
 
-MessageProtocol::MessageProtocol(const std::shared_ptr<IoLine>& line) : m_impl(new Impl)
+MessageProtocol::MessageProtocol(IoLine* line) : m_impl(new Impl)
 {
 	m_impl->line = line;
 }
@@ -148,7 +148,7 @@ MessageProtocol::MessageProtocol(MessageProtocol&& other) : m_impl(std::move(oth
 {
 }
 
-void MessageProtocol::readMessage(Message& m)
+ssize_t MessageProtocol::readMessage(Message& m)
 {
 	assert(m.size() == 0);
 
@@ -159,7 +159,7 @@ void MessageProtocol::readMessage(Message& m)
 		char* ptr = reinterpret_cast<char*>(&frames) + bytesRead;
 		int result = m_impl->line->read(ptr, 4 - bytesRead);
 		if(result <= 0)
-			throw TimeoutException("Timeout or error");
+			return result;
 		bytesRead += result;
 	}
 
@@ -172,7 +172,7 @@ void MessageProtocol::readMessage(Message& m)
 			char* ptr = reinterpret_cast<char*>(&frameLength) + bytesRead;
 			int result = m_impl->line->read(ptr, 4 - bytesRead);
 			if(result <= 0)
-				throw TimeoutException("Timeout or error");
+				return result;
 			bytesRead += result;
 		}
 
@@ -184,16 +184,16 @@ void MessageProtocol::readMessage(Message& m)
 			char* ptr = data.data() + bytesRead;
 			int result = m_impl->line->read(ptr, frameLength - bytesRead);
 			if(result <= 0)
-				throw TimeoutException("Timeout or error");
+				return result;
 			bytesRead += result;
 		}
 
 		m.addFrame(Frame(std::move(data)));
 	}
-	//printf("Proto::readMessage done: %x\n", this);
+	return 1;
 }
 
-void MessageProtocol::sendMessage(const Message& m)
+ssize_t MessageProtocol::sendMessage(const Message& m)
 {
 	std::vector<char> buffer(m.messageSize());
 	m.writeMessage(buffer.data());
@@ -205,12 +205,13 @@ void MessageProtocol::sendMessage(const Message& m)
 		towrite -= done;
 		data += done;
 	}
+	return 1;
 }
 
 
 IoLine* MessageProtocol::getLine() const
 {
-	return m_impl->line.get();
+	return m_impl->line;
 }
 
 

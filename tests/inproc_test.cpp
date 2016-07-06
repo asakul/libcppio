@@ -82,8 +82,8 @@ TEST_CASE("DataQueue", "[io]")
 	SECTION("Writing bigger than buffer itself is failure")
 	{
 		std::array<char, 10240> buf;
-		size_t done = queue.write(buf.data(), buf.size());
-		REQUIRE(done == 0);
+		ssize_t done = queue.write(buf.data(), buf.size());
+		REQUIRE(done == eTooBigBuffer);
 		REQUIRE(queue.writePointer() == 0);
 	}
 

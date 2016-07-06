@@ -129,57 +129,57 @@ namespace cppio
 		m_writeCondition.notify_all();
 	}
 
-	size_t DataQueue::read(void* buffer, size_t buflen)
+	ssize_t DataQueue::read(void* buffer, size_t buflen)
 	{
 		std::unique_lock<std::mutex> lock(m_mutex);
 		m_writeCondition.notify_all();
 		while(m_buffer.availableReadSize() == 0)
 		{
 			if(!m_connected)
-				throw ConnectionLost("Unable to read");
+				return eConnectionLost;
 			m_readCondition.wait(lock);
 
 			if((m_buffer.availableReadSize() == 0) && (!m_connected))
-				throw ConnectionLost("Unable to read [2]");
+				return eConnectionLost;
 		}
 		return m_buffer.read(buffer, buflen);
 	}
 
-	size_t DataQueue::readWithTimeout(void* buffer, size_t buflen, const std::chrono::milliseconds& timeout)
+	ssize_t DataQueue::readWithTimeout(void* buffer, size_t buflen, const std::chrono::milliseconds& timeout)
 	{
 		std::unique_lock<std::mutex> lock(m_mutex);
 		m_writeCondition.notify_all();
 		if(m_buffer.availableReadSize() == 0)
 		{
 			if(!m_connected)
-				throw ConnectionLost("Unable to write");
+				return eConnectionLost;
 			bool rc = m_readCondition.wait_for(lock, timeout, [&]() { return m_buffer.availableReadSize() > 0; });
 			if(!rc)
 			{
 				if(!m_connected)
-					throw ConnectionLost("Unable to write[2]");
-				return 0;
+					return eConnectionLost;
+				return eTimeout;
 			}
 
 			if((m_buffer.availableReadSize() == 0) && (!m_connected))
-				throw ConnectionLost("Unable to write[3]");
+				return eConnectionLost;
 		}
 		return m_buffer.read(buffer, buflen);
 	}
 
-	size_t DataQueue::write(void* buffer, size_t buflen)
+	ssize_t DataQueue::write(void* buffer, size_t buflen)
 	{
 		std::unique_lock<std::mutex> lock(m_mutex);
 		if(buflen >= m_buffer.size())
-			return 0;
+			return eTooBigBuffer;
 		if(m_buffer.availableWriteSize() == 0)
 		{
 			if(!m_connected)
-				throw ConnectionLost("");
+				return eConnectionLost;
 			m_writeCondition.wait(lock, [&]() { return m_buffer.availableWriteSize() > 0; });
 
 			if((m_buffer.availableWriteSize() == 0) && (!m_connected))
-				throw ConnectionLost("");
+				return eConnectionLost;
 		}
 		size_t ret = m_buffer.write(buffer, buflen);
 		m_readCondition.notify_all();
@@ -359,7 +359,7 @@ namespace cppio
 				// We should re-check if any data is available, because peer could write data
 				// after first check and then disconnect
 				if(m_buffer.availableReadSize() == 0)
-					throw ConnectionLost("");
+					return eConnectionLost;
 				else
 					hasData = true;
 			}
@@ -368,7 +368,7 @@ namespace cppio
 				m_readCondition.wait(lock);
 
 				if((m_buffer.availableReadSize() == 0) && (!m_connected))
-					throw ConnectionLost("");
+					return eConnectionLost;
 			}
 		}
 
@@ -394,18 +394,18 @@ namespace cppio
 		if(m_buffer.availableReadSize() == 0)
 		{
 			if(!m_connected)
-				throw ConnectionLost("");
+				return eConnectionLost;
 			std::unique_lock<std::mutex> lock(m_mutex);
 			bool rc = m_readCondition.wait_for(lock, timeout, [&]() { return m_buffer.availableReadSize() > 0; });
 			if(!rc)
 			{
 				if(!m_connected)
-					throw ConnectionLost("");
-				return 0;
+					return eConnectionLost;
+				return eTimeout;
 			}
 
 			if((m_buffer.availableReadSize() == 0) && (!m_connected))
-				throw ConnectionLost("");
+				return eConnectionLost;
 		}
 		{
 			size_t rc = m_buffer.read(buffer, buflen);
@@ -417,16 +417,16 @@ namespace cppio
 	size_t DataQueue::write(void* buffer, size_t buflen)
 	{
 		if(buflen >= m_buffer.size())
-			return 0;
+			return eTooBigBuffer;
 		if(m_buffer.availableWriteSize() < buflen)
 		{
 			std::unique_lock<std::mutex> lock(m_mutex);
 			if((m_buffer.availableWriteSize() < buflen) && (!m_connected))
-				throw ConnectionLost("");
+				return eConnectionLost;
 			m_writeCondition.wait(lock, [&]() { return m_buffer.availableWriteSize() >= buflen; });
 
 			if((m_buffer.availableWriteSize() < buflen) && (!m_connected))
-				throw ConnectionLost("");
+				return eConnectionLost;
 		}
 		{
 			if(availableReadSize() == 0)
@@ -473,10 +473,10 @@ namespace cppio
 
 	static std::mutex gs_mutex;
 	static std::condition_variable gs_cond;
-	static std::list<std::weak_ptr<InprocAcceptor>> gs_acceptors;
-	static std::list<std::weak_ptr<InprocLine>> gs_connectQueue;
+	static std::list<InprocAcceptor*> gs_acceptors;
+	static std::list<InprocLine*> gs_connectQueue;
 
-	InprocLine::InprocLine(const std::shared_ptr<InprocLine>& other) : m_address(other->address()),
+	InprocLine::InprocLine(InprocLine* other) : m_address(other->address()),
 		m_readTimeout(0)
 	{
 		m_in = std::make_shared<DataQueue>(65536);
@@ -537,6 +537,7 @@ namespace cppio
 		if(m_in && m_out)
 			return;
 
+		// TODO timeout
 		m_condition.wait(lock, [&]() { return m_in && m_out; });
 	}
 
@@ -551,8 +552,8 @@ namespace cppio
 			std::unique_lock<std::mutex> lock(gs_mutex);
 			for(auto it = gs_acceptors.begin(); it != gs_acceptors.end(); ++it)
 			{
-				auto acceptor = it->lock();
-				if(acceptor.get() == this)
+				auto acceptor = *it;
+				if(acceptor == this)
 				{
 					gs_acceptors.erase(it);
 					return;
@@ -565,7 +566,7 @@ namespace cppio
 		}
 	}
 
-	std::shared_ptr<IoLine> InprocAcceptor::waitConnection(const std::chrono::milliseconds& timeout)
+	IoLine* InprocAcceptor::waitConnection(int timeoutInMs)
 	{
 		std::unique_lock<std::mutex> lock(gs_mutex);
 		auto start = std::chrono::steady_clock::now();
@@ -574,28 +575,20 @@ namespace cppio
 			auto it = gs_connectQueue.begin();
 			while(it != gs_connectQueue.end())
 			{
-				auto line = it->lock();
-				if(!line)
+				auto line = *it;
+				if(line->address() == address())
 				{
 					it = gs_connectQueue.erase(it);
+					return new InprocLine(line);
 				}
-				else
-				{
-					if(line->address() == address())
-					{
-						it = gs_connectQueue.erase(it);
-						auto otherLine = std::make_shared<InprocLine>(line);
-						return otherLine;
-					}
-					++it;
-				}
+				++it;
 			}
 
 			auto current = std::chrono::steady_clock::now();
 			auto elapsed = current - start;
-			auto left = timeout - elapsed;
+			auto left = std::chrono::milliseconds(timeoutInMs) - elapsed;
 			if(left < std::chrono::milliseconds::zero())
-				return std::shared_ptr<IoLine>();
+				return nullptr;
 
 			gs_cond.wait_for(lock, left);
 		}
@@ -617,13 +610,13 @@ namespace cppio
 		return scheme == "inproc";
 	}
 
-	std::shared_ptr<IoLine> InprocLineFactory::createClient(const std::string& address)
+	IoLine* InprocLineFactory::createClient(const std::string& address)
 	{
-		std::shared_ptr<InprocLine> line;
+		InprocLine* line;
 		{
 			std::unique_lock<std::mutex> lock(gs_mutex);
-			line = std::make_shared<InprocLine>(address);
-			gs_connectQueue.push_back(std::weak_ptr<InprocLine>(line));
+			line = new InprocLine(address);
+			gs_connectQueue.push_back(line);
 			gs_cond.notify_all();
 		}
 
@@ -632,19 +625,15 @@ namespace cppio
 		return line;
 	}
 
-	std::shared_ptr<IoAcceptor> InprocLineFactory::createServer(const std::string& address)
+	IoAcceptor* InprocLineFactory::createServer(const std::string& address)
 	{
 		std::unique_lock<std::mutex> lock(gs_mutex);
 		for(auto it = gs_acceptors.begin(); it != gs_acceptors.end(); ++it)
 		{
-			auto acceptor = it->lock();
-			if(acceptor)
-			{
-				if(acceptor->address() == address)
-					throw IoException("Acceptor with address " + address + " already exists");
-			}
+			if((*it)->address() == address)
+				return nullptr;
 		}
-		auto acceptor = std::make_shared<InprocAcceptor>(address);
+		auto acceptor = new InprocAcceptor(address);
 		gs_acceptors.push_back(acceptor);
 		return acceptor;
 	}

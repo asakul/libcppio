@@ -31,7 +31,7 @@ public:
 	UnixSocketAcceptor(const std::string& address);
 	virtual ~UnixSocketAcceptor();
 
-	virtual std::shared_ptr<IoLine> waitConnection(const std::chrono::milliseconds& timeout);
+	virtual IoLine* waitConnection(int timeoutInMs);
 
 private:
 	std::string m_address;
@@ -43,8 +43,8 @@ class UnixSocketFactory : public IoLineFactory
 public:
 	virtual ~UnixSocketFactory();
 	virtual bool supportsScheme(const std::string& scheme);
-	virtual std::shared_ptr<IoLine> createClient(const std::string& address);
-	virtual std::shared_ptr<IoAcceptor> createServer(const std::string& address);
+	virtual IoLine* createClient(const std::string& address);
+	virtual IoAcceptor* createServer(const std::string& address);
 };
 
 class TcpSocket : public IoLine
@@ -71,7 +71,7 @@ public:
 	TcpSocketAcceptor(const std::string& address);
 	virtual ~TcpSocketAcceptor();
 
-	virtual std::shared_ptr<IoLine> waitConnection(const std::chrono::milliseconds& timeout);
+	virtual IoLine* waitConnection(int timeoutInMs);
 
 private:
 	std::string m_address;
@@ -83,8 +83,8 @@ class TcpSocketFactory : public IoLineFactory
 public:
 	virtual ~TcpSocketFactory();
 	virtual bool supportsScheme(const std::string& scheme);
-	virtual std::shared_ptr<IoLine> createClient(const std::string& address);
-	virtual std::shared_ptr<IoAcceptor> createServer(const std::string& address);
+	virtual IoLine* createClient(const std::string& address);
+	virtual IoAcceptor* createServer(const std::string& address);
 };
 }
 

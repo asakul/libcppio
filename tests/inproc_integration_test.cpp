@@ -27,14 +27,14 @@ TEST_CASE("InprocLine", "[io]")
 		std::array<char, 1024> recv_buf {};
 		std::iota(buf.begin(), buf.end(), 0);
 
-		auto acceptor = manager.createServer("inproc://foo");
+		auto acceptor = std::unique_ptr<IoAcceptor>(manager.createServer("inproc://foo"));
 		std::thread clientThread([&](){
-				auto client = manager.createClient("inproc://foo");
+				auto client = std::unique_ptr<IoLine>(manager.createClient("inproc://foo"));
 				client->write(buf.data(), buf.size());
 			});
 
 		std::thread serverThread([&](){
-				auto server = acceptor->waitConnection(std::chrono::milliseconds(100));
+				auto server = std::unique_ptr<IoLine>(acceptor->waitConnection(100));
 				server->read(recv_buf.data(), recv_buf.size());
 			});
 
@@ -53,9 +53,9 @@ TEST_CASE("InprocLine", "[io]")
 		const int chunkSize = 1024;
 		int totalChunks = buf.size() / chunkSize;
 
-		auto acceptor = manager.createServer("inproc://foo");
+		auto acceptor = std::unique_ptr<IoAcceptor>(manager.createServer("inproc://foo"));
 		std::thread clientThread([&](){
-				auto client = manager.createClient("inproc://foo");
+				auto client = std::unique_ptr<IoLine>(manager.createClient("inproc://foo"));
 				for(size_t i = 0; i < totalChunks; i++)
 				{
 					auto start = buf.data() + chunkSize * i;
@@ -70,7 +70,7 @@ TEST_CASE("InprocLine", "[io]")
 			});
 
 		std::thread serverThread([&](){
-				auto server = acceptor->waitConnection(std::chrono::milliseconds(100));
+				auto server = std::unique_ptr<IoLine>(acceptor->waitConnection(100));
 				for(size_t i = 0; i < totalChunks; i++)
 				{
 					auto start = recv_buf.data() + chunkSize * i;
@@ -99,9 +99,9 @@ TEST_CASE("InprocLine", "[io]")
 		const int chunkSize = 1024;
 		int totalChunks = buf.size() / chunkSize;
 
-		auto acceptor = manager.createServer("inproc://foo");
+		auto acceptor = std::unique_ptr<IoAcceptor>(manager.createServer("inproc://foo"));
 		std::thread clientThread([&](){
-				auto client = manager.createClient("inproc://foo");
+				auto client = std::unique_ptr<IoLine>(manager.createClient("inproc://foo"));
 				for(size_t i = 0; i < totalChunks; i++)
 				{
 					if((rand() % 100) == 0)
@@ -118,7 +118,7 @@ TEST_CASE("InprocLine", "[io]")
 			});
 
 		std::thread serverThread([&](){
-				auto server = acceptor->waitConnection(std::chrono::milliseconds(100));
+				auto server = std::unique_ptr<IoLine>(acceptor->waitConnection(100));
 				for(size_t i = 0; i < totalChunks; i++)
 				{
 					if((rand() % 100) == 0)
@@ -146,15 +146,15 @@ TEST_CASE("InprocLine", "[io]")
 		std::array<char, 1024> recv_buf {};
 		std::iota(buf.begin(), buf.end(), 0);
 
-		auto acceptor = manager.createServer("inproc://foo");
+		auto acceptor = std::unique_ptr<IoAcceptor>(manager.createServer("inproc://foo"));
 		std::thread clientThread([&](){
-				auto client = manager.createClient("inproc://foo");
+				auto client = std::unique_ptr<IoLine>(manager.createClient("inproc://foo"));
 				client->write(buf.data(), buf.size());
 			});
 
 		std::thread serverThread([&](){
 				std::this_thread::sleep_for(std::chrono::milliseconds(100));
-				auto server = acceptor->waitConnection(std::chrono::milliseconds(200));
+				auto server = std::unique_ptr<IoLine>(acceptor->waitConnection(200));
 				server->read(recv_buf.data(), recv_buf.size());
 			});
 
@@ -170,15 +170,15 @@ TEST_CASE("InprocLine", "[io]")
 		std::array<char, 1024> recv_buf {};
 		std::iota(buf.begin(), buf.end(), 0);
 
-		auto acceptor = manager.createServer("inproc://foo");
+		auto acceptor = std::unique_ptr<IoAcceptor>(manager.createServer("inproc://foo"));
 		std::thread clientThread([&](){
 				std::this_thread::sleep_for(std::chrono::milliseconds(100));
-				auto client = manager.createClient("inproc://foo");
+				auto client = std::unique_ptr<IoLine>(manager.createClient("inproc://foo"));
 				client->write(buf.data(), buf.size());
 			});
 
 		std::thread serverThread([&](){
-				auto server = acceptor->waitConnection(std::chrono::milliseconds(200));
+				auto server = std::unique_ptr<IoLine>(acceptor->waitConnection(200));
 				server->read(recv_buf.data(), recv_buf.size());
 			});
 
@@ -194,24 +194,19 @@ TEST_CASE("InprocLine", "[io]")
 		std::array<char, 1024> recv_buf {};
 		std::iota(buf.begin(), buf.end(), 0);
 
-		auto acceptor = manager.createServer("inproc://foo");
+		auto acceptor = std::unique_ptr<IoAcceptor>(manager.createServer("inproc://foo"));
 		std::thread clientThread([&](){
-				auto client = manager.createClient("inproc://foo");
+				auto client = std::unique_ptr<IoLine>(manager.createClient("inproc://foo"));
 			});
 
 		bool hasConnectionLoss = false;
 		std::thread serverThread([&](){
-				auto server = acceptor->waitConnection(std::chrono::milliseconds(100));
+				auto server = std::unique_ptr<IoLine>(acceptor->waitConnection(100));
 				int timeout = 100;
 				server->setOption(LineOption::ReceiveTimeout, &timeout);
-				try
-				{
-					server->read(recv_buf.data(), recv_buf.size());
-				}
-				catch(const ConnectionLost& e)
-				{
+				ssize_t rc = server->read(recv_buf.data(), recv_buf.size());
+				if(rc == eConnectionLost)
 					hasConnectionLoss = true;
-				}
 			});
 
 		clientThread.join();

@@ -20,12 +20,12 @@ static void checkIo(const std::shared_ptr<IoLineManager>& manager, const std::st
 	std::array<char, 1024> buf;
 	std::iota(buf.begin(), buf.end(), 0);
 
-	auto server = manager->createServer(endpoint);
+	auto server = std::unique_ptr<IoAcceptor>(manager->createServer(endpoint));
 
-	auto client = manager->createClient(endpoint);
+	auto client = std::unique_ptr<IoLine>(manager->createClient(endpoint));
 	REQUIRE(client);
 
-	auto socket = server->waitConnection(std::chrono::milliseconds(100));
+	auto socket = std::unique_ptr<IoLine>(server->waitConnection(100));
 
 	int rc = client->write(buf.data(), 1024);
 	REQUIRE(rc == 1024);
@@ -53,15 +53,15 @@ static void threadedCheckIo(const std::shared_ptr<IoLineManager>& manager, const
 	std::array<char, 1024> recv_buf;
 
 	std::thread serverThread([&]() {
-			auto server = manager->createServer(serverEndpoint);
-			auto socket = server->waitConnection(std::chrono::milliseconds(100));
+			auto server = std::unique_ptr<IoAcceptor>(manager->createServer(serverEndpoint));
+			auto socket = std::unique_ptr<IoLine>(server->waitConnection(100));
 			socket->read(recv_buf.data(), 1024);
 			});
 
 
 	std::thread clientThread([&]() {
 			usleep(10000);
-			auto client = manager->createClient(endpoint);
+			auto client = std::unique_ptr<IoLine>(manager->createClient(endpoint));
 			REQUIRE(client);
 
 			int rc = client->write(buf.data(), 1024);

@@ -7,6 +7,7 @@
 #include <memory>
 #include <chrono>
 #include "visibility.h"
+#include "cppio/errors.h"
 
 namespace cppio
 {
@@ -78,7 +79,7 @@ class CPPIO_API IoAcceptor : public Pollable
 public:
 	virtual ~IoAcceptor() = 0;
 
-	virtual std::shared_ptr<IoLine> waitConnection(const std::chrono::milliseconds& timeout) = 0;
+	virtual IoLine* waitConnection(int timeoutInMs) = 0;
 };
 
 inline IoAcceptor::~IoAcceptor() {}
@@ -89,8 +90,8 @@ public:
 	virtual ~IoLineFactory() = 0;
 
 	virtual bool supportsScheme(const std::string& scheme) = 0;
-	virtual std::shared_ptr<IoLine> createClient(const std::string& address) = 0;
-	virtual std::shared_ptr<IoAcceptor> createServer(const std::string& address) = 0;
+	virtual IoLine* createClient(const std::string& address) = 0;
+	virtual IoAcceptor* createServer(const std::string& address) = 0;
 };
 
 inline IoLineFactory::~IoLineFactory() {}

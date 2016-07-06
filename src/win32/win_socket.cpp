@@ -56,13 +56,15 @@ ssize_t WinSocket::read(void* buffer, size_t buflen)
 		int error = WSAGetLastError();
 		if((error == WSAENETRESET) || (error == WSAECONNABORTED) ||
 				(error == WSAECONNRESET))
-			throw ConnectionLost("");
-		return 0;
+			return eConnectionLost;
+		return eUnknown;
 	}
 	else if(rc == 0)
 	{
 		if(WSAGetLastError() != WSAETIMEDOUT)
-			throw ConnectionLost("");
+			return eConnectionLost;
+		else
+			return eTimeout;
 	}
 	return rc;
 }
@@ -70,6 +72,8 @@ ssize_t WinSocket::read(void* buffer, size_t buflen)
 ssize_t WinSocket::write(void* buffer, size_t buflen)
 {
 	ssize_t rc = ::send(m_socket, (char*)buffer, buflen, 0);
+	if(rc <= 0)
+		return eUnknown;
 	return rc;
 }
 
@@ -135,21 +139,20 @@ WinSocketAcceptor::~WinSocketAcceptor()
 	closesocket(m_socket);
 }
 
-std::shared_ptr<IoLine> WinSocketAcceptor::waitConnection(const std::chrono::milliseconds& timeout)
+IoLine* WinSocketAcceptor::waitConnection(int timeoutInMs)
 {
 	int newsock = accept(m_socket, NULL, NULL);
 	if(newsock > 0)
 	{
-		return std::make_shared<WinSocket>(newsock, "");
+		return new WinSocket(newsock, "");
 	}
-	return std::shared_ptr<IoLine>();
+	return nullptr;
 }
 
 WinSocketFactory::WinSocketFactory()
 {
 	WORD sockVer;
     WSADATA wsaData;
-    int retVal;
 
     sockVer = MAKEWORD(2,2);
 
@@ -166,17 +169,17 @@ bool WinSocketFactory::supportsScheme(const std::string& scheme)
 	return scheme == "tcp";
 }
 
-std::shared_ptr<IoLine> WinSocketFactory::createClient(const std::string& address)
+IoLine* WinSocketFactory::createClient(const std::string& address)
 {
-	auto socket = std::make_shared<WinSocket>(address);
+	auto socket = new WinSocket(address);
 	if(socket)
 		socket->connect();
 	return socket;
 }
 
-std::shared_ptr<IoAcceptor> WinSocketFactory::createServer(const std::string& address)
+IoAcceptor* WinSocketFactory::createServer(const std::string& address)
 {
-	return std::make_shared<WinSocketAcceptor>(address);
+	return new WinSocketAcceptor(address);
 }
 }
 

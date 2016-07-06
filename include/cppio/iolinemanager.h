@@ -16,8 +16,8 @@ public:
 	IoLineManager();
 	virtual ~IoLineManager();
 
-	std::shared_ptr<IoLine> createClient(const std::string& address);
-	std::shared_ptr<IoAcceptor> createServer(const std::string& address);
+	IoLine* createClient(const std::string& address);
+	IoAcceptor* createServer(const std::string& address);
 
 	void registerFactory(std::unique_ptr<IoLineFactory> factory);
 

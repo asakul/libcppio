@@ -43,11 +43,11 @@ class Poller
 public:
 	virtual ~Poller() = 0;
 
-	virtual void addLine(const std::shared_ptr<Pollable>& line, LineEvent events) = 0;
-	virtual void removeLine(const std::shared_ptr<Pollable>& line) = 0;
+	virtual void addLine(Pollable* line, LineEvent events) = 0;
+	virtual void removeLine(Pollable*) = 0;
 
-	virtual bool poll(const std::chrono::milliseconds& timeout) = 0;
-	virtual LineEvent eventsForLine(const std::shared_ptr<Pollable>& line) = 0;
+	virtual bool poll(int timeoutInMs) = 0;
+	virtual LineEvent eventsForLine(Pollable* line) = 0;
 };
 
 inline Poller::~Poller() {}

@@ -123,7 +123,7 @@ static bool connectPipe(HANDLE pipe, int msec)
 	return ret != 0;
 }
 
-std::shared_ptr<IoLine> NamedPipeAcceptor::waitConnection(const std::chrono::milliseconds& timeout)
+IoLine* NamedPipeAcceptor::waitConnection(int timeoutInMs)
 {
 	std::string newPipeAddress = m_address + to_string(m_counter.fetch_add(1));
 	m_waitingPipe = CreateNamedPipe((pipePrefix + newPipeAddress).c_str(), PIPE_ACCESS_DUPLEX,
@@ -131,11 +131,11 @@ std::shared_ptr<IoLine> NamedPipeAcceptor::waitConnection(const std::chrono::mil
 			PIPE_UNLIMITED_INSTANCES,
 			65536, 65536, 0, NULL);
 
-	bool ret = connectPipe(m_pipe, timeout.count());
+	bool ret = connectPipe(m_pipe, timeoutInMs);
 	if(!ret)
 	{
 		CloseHandle(m_waitingPipe);
-		return std::shared_ptr<IoLine>();
+		return nullptr;
 	}
 
 	DWORD written = 0;
@@ -144,13 +144,13 @@ std::shared_ptr<IoLine> NamedPipeAcceptor::waitConnection(const std::chrono::mil
 	FlushFileBuffers(m_pipe);
 	DisconnectNamedPipe(m_pipe);
 
-	ret = connectPipe(m_waitingPipe, timeout.count());
+	ret = connectPipe(m_waitingPipe, timeoutInMs);
 	if(!ret)
 	{
 		CloseHandle(m_waitingPipe);
-		return std::shared_ptr<IoLine>();
+		return nullptr;
 	}
-	return std::make_shared<NamedPipeLine>(m_waitingPipe, newPipeAddress);
+	return new NamedPipeLine(m_waitingPipe, newPipeAddress);
 }
 
 NamedPipeLineFactory::NamedPipeLineFactory()
@@ -166,14 +166,14 @@ bool NamedPipeLineFactory::supportsScheme(const std::string& scheme)
 	return scheme == "local";
 }
 
-std::shared_ptr<IoLine> NamedPipeLineFactory::createClient(const std::string& address)
+IoLine* NamedPipeLineFactory::createClient(const std::string& address)
 {
-	return std::make_shared<NamedPipeLine>(address);
+	return new NamedPipeLine(address);
 }
 
-std::shared_ptr<IoAcceptor> NamedPipeLineFactory::createServer(const std::string& address)
+IoAcceptor* NamedPipeLineFactory::createServer(const std::string& address)
 {
-	return std::make_shared<NamedPipeAcceptor>(address);
+	return new NamedPipeAcceptor(address);
 }
 
 }

@@ -19,11 +19,11 @@ IoLineManager::~IoLineManager()
 {
 }
 
-std::shared_ptr<IoLine> IoLineManager::createClient(const std::string& address)
+IoLine* IoLineManager::createClient(const std::string& address)
 {
 	auto delimiter = address.find_first_of("://");
 	if(delimiter == std::string::npos)
-		return std::shared_ptr<IoLine>();
+		return nullptr;
 
 	auto scheme = address.substr(0, delimiter);
 	for(const auto& factory : m_impl->factories)
@@ -34,14 +34,14 @@ std::shared_ptr<IoLine> IoLineManager::createClient(const std::string& address)
 			return factory->createClient(baseAddress);
 		}
 	}
-	return std::shared_ptr<IoLine>();
+	return nullptr;
 }
 
-std::shared_ptr<IoAcceptor> IoLineManager::createServer(const std::string& address)
+IoAcceptor* IoLineManager::createServer(const std::string& address)
 {
 	auto delimiter = address.find_first_of("://");
 	if(delimiter == std::string::npos)
-		return std::shared_ptr<IoAcceptor>();
+		return nullptr;
 
 	auto scheme = address.substr(0, delimiter);
 	for(const auto& factory : m_impl->factories)
@@ -52,7 +52,7 @@ std::shared_ptr<IoAcceptor> IoLineManager::createServer(const std::string& addre
 			return factory->createServer(baseAddress);
 		}
 	}
-	return std::shared_ptr<IoAcceptor>();
+	return nullptr;
 }
 
 
