@@ -50,6 +50,8 @@ public:
 	Message& operator=(Message&& other) = default;
 	virtual ~Message();
 
+	void clear();
+
 	static Message readMessage(const void* buffer, size_t bufferLength);
 
 	void addFrame(const Frame& frame);

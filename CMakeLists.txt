@@ -35,6 +35,7 @@ set(cppio-sources
 		src/message.cpp
 
 		src/common/inproc.cpp
+		src/cppio_c.cpp
 	)
 
 if(WIN32)

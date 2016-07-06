@@ -50,6 +50,11 @@ Message::~Message()
 {
 }
 
+void Message::clear()
+{
+	m_frames.clear();
+}
+
 Message Message::readMessage(const void* buffer, size_t bufferLength)
 {
 	char* start = (char*)buffer;
