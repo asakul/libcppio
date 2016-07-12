@@ -57,6 +57,8 @@ ssize_t WinSocket::read(void* buffer, size_t buflen)
 		if((error == WSAENETRESET) || (error == WSAECONNABORTED) ||
 				(error == WSAECONNRESET))
 			return eConnectionLost;
+		if(error == WSAETIMEDOUT)
+			return eTimeout;
 		return eUnknown;
 	}
 	else if(rc == 0)

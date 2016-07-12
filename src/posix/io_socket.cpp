@@ -52,6 +52,8 @@ ssize_t UnixSocket::read(void* buffer, size_t buflen)
 	{
 		if((errno == ECONNRESET) || (errno == ENOTCONN))
 			return eConnectionLost;
+		if(errno == EAGAIN)
+			return eTimeout;
 		return eUnknown;
 	}
 	else if(rc == 0)
@@ -214,6 +216,8 @@ ssize_t TcpSocket::read(void* buffer, size_t buflen)
 	{
 		if((errno == ECONNRESET) || (errno == ENOTCONN))
 			return eConnectionLost;
+		if(errno == EAGAIN)
+			return eTimeout;
 		return eUnknown;
 	}
 	else if(rc == 0)
