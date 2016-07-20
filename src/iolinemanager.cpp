@@ -30,8 +30,15 @@ IoLine* IoLineManager::createClient(const std::string& address)
 	{
 		if(factory->supportsScheme(scheme))
 		{
-			auto baseAddress = address.substr(delimiter + 3);
-			return factory->createClient(baseAddress);
+			try
+			{
+				auto baseAddress = address.substr(delimiter + 3);
+				return factory->createClient(baseAddress);
+			}
+			catch(const IoException& e)
+			{
+				return nullptr;
+			}
 		}
 	}
 	return nullptr;
@@ -48,8 +55,15 @@ IoAcceptor* IoLineManager::createServer(const std::string& address)
 	{
 		if(factory->supportsScheme(scheme))
 		{
-			auto baseAddress = address.substr(delimiter + 3);
-			return factory->createServer(baseAddress);
+			try
+			{
+				auto baseAddress = address.substr(delimiter + 3);
+				return factory->createServer(baseAddress);
+			}
+			catch(const IoException& e)
+			{
+				return nullptr;
+			}
 		}
 	}
 	return nullptr;
