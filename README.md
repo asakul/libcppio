@@ -7,5 +7,5 @@ Libcppio provides uniform interface for various I/O lines, currently supported a
  * local - inter-process communication within one system
  * tcp - inter-system communication within TCP network
 
-Not ready for production yet, but I would really love any feedback.
+~_~
 

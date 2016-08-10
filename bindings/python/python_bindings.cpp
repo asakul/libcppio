@@ -4,6 +4,7 @@
 #include "cppio/iolinemanager.h"
 #include "cppio/ioline.h"
 #include "cppio/message.h"
+#include "cppio/cppio_c.h"
 
 using namespace boost::python;
 using namespace cppio;
@@ -42,7 +43,7 @@ private:
     PyThreadState* m_thread_state;
 };
 
-std::shared_ptr<IoLineManager> makeIoLineManager()
+IoLineManager* makeIoLineManager()
 {
 	return cppio::createLineManager();
 }
@@ -63,7 +64,7 @@ void appendMessageFrame(Message& msg, handle<>& bytes)
 		throw std::runtime_error("Invalid object passed, should be of type 'bytes' or 'bytearray'");
 }
 
-static handle<> readFromLine(const std::shared_ptr<IoLine>& line, int toread)
+static handle<> readFromLine(IoLine* line, int toread)
 {
 	size_t done = 0;
 	std::vector<char> buffer(toread);
@@ -74,7 +75,7 @@ static handle<> readFromLine(const std::shared_ptr<IoLine>& line, int toread)
 	return handle<>(PyByteArray_FromStringAndSize(static_cast<const char*>(buffer.data()), done));
 }
 
-static void writeToLine(const std::shared_ptr<IoLine>& line, handle<>& data)
+static void writeToLine(IoLine* line, handle<>& data)
 {
 	if(PyByteArray_Check(data.get()))
 	{
@@ -102,13 +103,13 @@ static void writeToLine(const std::shared_ptr<IoLine>& line, handle<>& data)
 		throw std::runtime_error("Invalid object passed, should be of type 'bytes' or 'bytearray'");
 }
 
-std::shared_ptr<IoLine> waitConnection(const std::shared_ptr<IoAcceptor>& self, float seconds)
+IoLine* waitConnection(IoAcceptor* self, float seconds)
 {
 	ScopedGILRelease r;
-	return self->waitConnection(std::chrono::milliseconds(int(1000 * seconds)));
+	return self->waitConnection(seconds * 1000);
 }
 
-std::shared_ptr<IoLine> IoLineManager_createClient(const std::shared_ptr<IoLineManager>& self, const std::string& address)
+IoLine* IoLineManager_createClient(IoLineManager* self, const std::string& address)
 {
 	ScopedGILRelease r;
 	return self->createClient(address);
@@ -136,12 +137,12 @@ BOOST_PYTHON_MODULE(pycppio)
 		PyEval_InitThreads();
 	}
 
-	class_<IoLineManager, std::shared_ptr<IoLineManager>, boost::noncopyable>("IoLineManager", no_init)
-		.def("createClient", IoLineManager_createClient)
-		.def("createServer", &IoLineManager::createServer)
+	class_<IoLineManager, boost::noncopyable>("IoLineManager", no_init)
+		.def("createClient", IoLineManager_createClient, return_value_policy<manage_new_object>())
+		.def("createServer", &IoLineManager::createServer, return_value_policy<manage_new_object>())
 		;
 
-	def("makeIoLineManager", makeIoLineManager);
+	def("makeIoLineManager", makeIoLineManager, return_value_policy<manage_new_object>());
 
 	class_<Message>("Message")
 		.def(init<>())
@@ -150,16 +151,16 @@ BOOST_PYTHON_MODULE(pycppio)
 		.def("appendFrame", appendMessageFrame)
 		;
 
-	class_<IoLine, std::shared_ptr<IoLine>, boost::noncopyable>("IoLine", no_init)
+	class_<IoLine, boost::noncopyable>("IoLine", no_init)
 		.def("read", readFromLine)
 		.def("write", writeToLine)
 		;
 
-	class_<IoAcceptor, std::shared_ptr<IoAcceptor>, boost::noncopyable>("IoAcceptor", no_init)
-		.def("waitConnection", waitConnection)
+	class_<IoAcceptor, boost::noncopyable>("IoAcceptor", no_init)
+		.def("waitConnection", waitConnection, return_value_policy<manage_new_object>())
 	;
 
-	class_<MessageProtocol, boost::noncopyable>("MessageProtocol", init<std::shared_ptr<IoLine>>())
+	class_<MessageProtocol, boost::noncopyable>("MessageProtocol", init<IoLine*>())
 		.def("sendMessage", MessageProtocol_sendMessage)
 		.def("readMessage", MessageProtocol_readMessage, return_value_policy<return_by_value>())
 		;
