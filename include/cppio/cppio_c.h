@@ -9,8 +9,10 @@ CPPIO_API enum cppio_line_option
 	cppio_send_timeout = 2
 };
 
+#ifdef __cplusplus
 extern "C"
 {
+#endif
 	typedef void* cppio_iolinemanager;
 	typedef void* cppio_ioline;
 	typedef void* cppio_ioacceptor;
@@ -28,7 +30,7 @@ extern "C"
 	cppio_ioline cppio_acceptor_wait_connection(cppio_ioacceptor acceptor, int timeout);
 	ssize_t cppio_line_read(cppio_ioline line, char* buffer, size_t buffer_length);
 	ssize_t cppio_line_write(cppio_ioline line, char* buffer, size_t buffer_length);
-	int cppio_line_set_option(cppio_ioline line, cppio_line_option option, void* data);
+	int cppio_line_set_option(cppio_ioline line, enum cppio_line_option option, void* data);
 
 	cppio_message cppio_create_message();
 	void cppio_message_add(cppio_message message, const char* buffer, size_t buffer_length);
@@ -42,5 +44,7 @@ extern "C"
 	void cppio_destroy_messageprotocol(cppio_messageprotocol protocol);
 	size_t cppio_messageprotocol_send(cppio_messageprotocol protocol, cppio_message message);
 	size_t cppio_messageprotocol_read(cppio_messageprotocol protocol, cppio_message message);
+#ifdef __cplusplus
 }
+#endif
 
