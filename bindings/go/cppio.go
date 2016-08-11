@@ -8,7 +8,12 @@ package cppio
 import "C"
 
 import ("unsafe"
+	"errors"
+	"runtime"
 	"fmt")
+
+const (oReceiveTimeout = int(C.cppio_receive_timeout)
+	oSendTimeout = int(C.cppio_send_timeout))
 
 const (
 	eTimeout = -1
@@ -45,6 +50,14 @@ type ioLine struct {
 }
 
 type ioAcceptor struct {
+	ptr unsafe.Pointer
+}
+
+type Message struct {
+	ptr unsafe.Pointer
+}
+
+type MessageProtocol struct {
 	ptr unsafe.Pointer
 }
 
@@ -94,6 +107,93 @@ func (line *ioLine) Read(bytes []byte) (n int, err Error) {
 	}
 }
 
+func (line *ioLine) setReceiveTimeout(args interface{}) error {
+	switch args.(type) {
+	case int:
+		C.cppio_line_set_option(line.ptr, C.cppio_receive_timeout, unsafe.Pointer(&args))
+		return nil
+	default:
+		return errors.New("Invalid option argument type")
+	}
+}
+
+func (line *ioLine) setSendTimeout(args interface{}) error {
+	switch args.(type) {
+	case int:
+		C.cppio_line_set_option(line.ptr, C.cppio_send_timeout, unsafe.Pointer(&args))
+		return nil
+	default:
+		return errors.New("Invalid option argument type")
+	}
+}
+
+func (line *ioLine) SetOption(option int, args interface{}) error {
+	switch(option) {
+	case oReceiveTimeout:
+		return line.setReceiveTimeout(args)
+	case oSendTimeout:
+		return line.setSendTimeout(args)
+	default:
+		return errors.New("Unknown option")
+	}
+}
+
 func (acceptor *ioAcceptor) WaitConnection(milliseconds uint) ioLine {
 	return ioLine { unsafe.Pointer(C.cppio_acceptor_wait_connection(acceptor.ptr, C.int(milliseconds)))}
+}
+
+func CreateMessage() *Message {
+	m := Message { unsafe.Pointer(C.cppio_create_message()) }
+	runtime.SetFinalizer(&m, func (msg *Message) {
+		C.cppio_destroy_message(msg.ptr)
+	})
+	return &m
+}
+
+func (m *Message) AddFrame(data []byte) {
+	C.cppio_message_add(m.ptr, (*C.char)(unsafe.Pointer(&data[0])), C.size_t(len(data)))
+}
+
+func (m *Message) Size() uint {
+	return uint(C.cppio_message_size(m.ptr))
+}
+
+func (m *Message) GetFrame(frameNumber uint) []byte {
+	frame := C.cppio_message_get_frame(m.ptr, C.size_t(frameNumber))
+	frameLength := uint(C.cppio_message_get_frame_length(m.ptr, C.size_t(frameNumber)))
+	b := make([]byte, frameLength)
+	for i:= uint(0); i < frameLength; i++ {
+		b[i] = *(*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(frame)) + uintptr(i)))
+	}
+	return b
+}
+
+func (m *Message) Clear() {
+	C.cppio_message_clear(m.ptr)
+}
+
+func CreateMessageProtocol(line ioLine) MessageProtocol {
+	return MessageProtocol { unsafe.Pointer(C.cppio_create_messageprotocol(line.ptr)) }
+}
+
+func (p *MessageProtocol) Destroy() {
+	C.cppio_destroy_messageprotocol(p.ptr)
+}
+
+func (p *MessageProtocol) Read(m *Message) Error {
+	retCode := int(C.cppio_messageprotocol_read(p.ptr, m.ptr))
+	if retCode <= 0 {
+		return newError(fmt.Errorf("Unable to read message: %d", retCode), retCode)
+	} else {
+		return nil
+	}
+}
+
+func (p *MessageProtocol) Send(m *Message) Error {
+	retCode := int(C.cppio_messageprotocol_send(p.ptr, m.ptr))
+	if retCode <= 0 {
+		return newError(fmt.Errorf("Unable to send message: %d", retCode), retCode)
+	} else {
+		return nil
+	}
 }
