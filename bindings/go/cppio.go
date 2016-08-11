@@ -70,8 +70,9 @@ func CreateClient(endpoint string) (line ioLine, err Error) {
 	}
 }
 
-func (line *ioLine) Close() {
+func (line *ioLine) Close() error {
 	C.cppio_destroy_line(line.ptr)
+	return nil
 }
 
 func CreateServer(endpoint string) (acceptor ioAcceptor, err Error) {
