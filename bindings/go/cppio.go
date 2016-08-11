@@ -12,8 +12,8 @@ import ("unsafe"
 	"runtime"
 	"fmt")
 
-const (oReceiveTimeout = int(C.cppio_receive_timeout)
-	oSendTimeout = int(C.cppio_send_timeout))
+const (OReceiveTimeout = int(C.cppio_receive_timeout)
+	OSendTimeout = int(C.cppio_send_timeout))
 
 const (
 	eTimeout = -1
@@ -45,11 +45,11 @@ func init() {
 	theLineManager = unsafe.Pointer(C.cppio_create_line_manager())
 }
 
-type ioLine struct {
+type IoLine struct {
 	ptr unsafe.Pointer
 }
 
-type ioAcceptor struct {
+type IoAcceptor struct {
 	ptr unsafe.Pointer
 }
 
@@ -61,34 +61,38 @@ type MessageProtocol struct {
 	ptr unsafe.Pointer
 }
 
-func CreateClient(endpoint string) (line ioLine, err Error) {
+func (line *IoLine) IsValid() bool {
+	return line.ptr != nil
+}
+
+func CreateClient(endpoint string) (line IoLine, err Error) {
 	ptr := unsafe.Pointer(C.cppio_create_client(theLineManager, C.CString(endpoint)))
 	if ptr == nil {
-		return ioLine { nil }, newError(fmt.Errorf("Unable to connect to: %s", endpoint), 0)
+		return IoLine { nil }, newError(fmt.Errorf("Unable to connect to: %s", endpoint), 0)
 	} else {
-		return ioLine { ptr }, nil
+		return IoLine { ptr }, nil
 	}
 }
 
-func (line *ioLine) Close() error {
+func (line *IoLine) Close() error {
 	C.cppio_destroy_line(line.ptr)
 	return nil
 }
 
-func CreateServer(endpoint string) (acceptor ioAcceptor, err Error) {
+func CreateServer(endpoint string) (acceptor IoAcceptor, err Error) {
 	ptr := unsafe.Pointer(C.cppio_create_server(theLineManager, C.CString(endpoint)))
 	if ptr == nil {
-		return ioAcceptor { nil }, newError(fmt.Errorf("Unable to create acceptor on: %s", endpoint), 0)
+		return IoAcceptor { nil }, newError(fmt.Errorf("Unable to create acceptor on: %s", endpoint), 0)
 	} else {
-		return ioAcceptor { ptr }, nil
+		return IoAcceptor { ptr }, nil
 	}
 }
 
-func (acceptor *ioAcceptor) Close() {
+func (acceptor *IoAcceptor) Close() {
 	C.cppio_destroy_acceptor(acceptor.ptr)
 }
 
-func (line *ioLine) Write(bytes []byte) (n int, err Error) {
+func (line *IoLine) Write(bytes []byte) (n int, err Error) {
 	wr := int(C.cppio_line_write(line.ptr, (*C.char)(unsafe.Pointer(&bytes[0])), C.size_t(len(bytes))))
 	if wr < 0 {
 		return 0, newError(fmt.Errorf("cppio error: %d", wr), wr)
@@ -99,7 +103,7 @@ func (line *ioLine) Write(bytes []byte) (n int, err Error) {
 	}
 }
 
-func (line *ioLine) Read(bytes []byte) (n int, err Error) {
+func (line *IoLine) Read(bytes []byte) (n int, err Error) {
 	rd := int(C.cppio_line_read(line.ptr, (*C.char)(unsafe.Pointer(&bytes[0])), C.size_t(len(bytes))))
 	if rd < 0 {
 		return 0, newError(fmt.Errorf("cppio error: %d", rd), rd)
@@ -108,39 +112,29 @@ func (line *ioLine) Read(bytes []byte) (n int, err Error) {
 	}
 }
 
-func (line *ioLine) setReceiveTimeout(args interface{}) error {
-	switch args.(type) {
-	case int:
-		C.cppio_line_set_option(line.ptr, C.cppio_receive_timeout, unsafe.Pointer(&args))
-		return nil
-	default:
-		return errors.New("Invalid option argument type")
-	}
+func (line *IoLine) setReceiveTimeout(value int) error {
+	C.cppio_line_set_option(line.ptr, C.cppio_receive_timeout, unsafe.Pointer(&value))
+	return nil
 }
 
-func (line *ioLine) setSendTimeout(args interface{}) error {
-	switch args.(type) {
-	case int:
-		C.cppio_line_set_option(line.ptr, C.cppio_send_timeout, unsafe.Pointer(&args))
-		return nil
-	default:
-		return errors.New("Invalid option argument type")
-	}
+func (line *IoLine) setSendTimeout(value int) error {
+	C.cppio_line_set_option(line.ptr, C.cppio_send_timeout, unsafe.Pointer(&value))
+	return nil
 }
 
-func (line *ioLine) SetOption(option int, args interface{}) error {
+func (line *IoLine) SetOptionInt(option int, value int) error {
 	switch(option) {
-	case oReceiveTimeout:
-		return line.setReceiveTimeout(args)
-	case oSendTimeout:
-		return line.setSendTimeout(args)
+	case OReceiveTimeout:
+		return line.setReceiveTimeout(value)
+	case OSendTimeout:
+		return line.setSendTimeout(value)
 	default:
 		return errors.New("Unknown option")
 	}
 }
 
-func (acceptor *ioAcceptor) WaitConnection(milliseconds uint) ioLine {
-	return ioLine { unsafe.Pointer(C.cppio_acceptor_wait_connection(acceptor.ptr, C.int(milliseconds)))}
+func (acceptor *IoAcceptor) WaitConnection(milliseconds uint) IoLine {
+	return IoLine { unsafe.Pointer(C.cppio_acceptor_wait_connection(acceptor.ptr, C.int(milliseconds)))}
 }
 
 func CreateMessage() *Message {
@@ -173,11 +167,11 @@ func (m *Message) Clear() {
 	C.cppio_message_clear(m.ptr)
 }
 
-func CreateMessageProtocol(line ioLine) MessageProtocol {
+func CreateMessageProtocol(line IoLine) MessageProtocol {
 	return MessageProtocol { unsafe.Pointer(C.cppio_create_messageprotocol(line.ptr)) }
 }
 
-func (p *MessageProtocol) Destroy() {
+func (p *MessageProtocol) Close() {
 	C.cppio_destroy_messageprotocol(p.ptr)
 }
 
