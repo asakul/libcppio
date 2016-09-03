@@ -70,7 +70,11 @@ ssize_t UnixSocket::write(void* buffer, size_t buflen)
 {
 	ssize_t rc = ::write(m_socket, buffer, buflen);
 	if(rc <= 0)
+	{
+		if((errno == ECONNRESET) || (errno == ENOTCONN))
+			return eConnectionLost;
 		return eUnknown;
+	}
 	return rc;
 }
 
